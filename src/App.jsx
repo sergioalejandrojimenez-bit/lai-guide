@@ -50,19 +50,51 @@ function App() {
     }, 50);
   }, []);
 
-  /* Actualizar progreso de un módulo (invocable desde hijos) */
-  const handleProgressUpdate = useCallback((moduleId, percent) => {
+  /* Actualizar progreso y estado de checks de un módulo */
+  const handleCheckUpdate = useCallback((moduleId, checkId, isChecked) => {
+    setProgressMap((prev) => {
+      const current = prev[moduleId] || { percent: 0, checks: {} };
+      const newChecks = { ...current.checks, [checkId]: isChecked };
+      
+      // El cálculo del porcentaje se hará ahora dentro del componente del equipo
+      // y se enviará mediante un callback secundario o calculado aquí si conocemos el total.
+      // Por flexibilidad, dejaremos que el equipo envíe el porcentaje.
+      
+      return {
+        ...prev,
+        [moduleId]: { 
+          ...current, 
+          checks: newChecks 
+        },
+      };
+    });
+  }, []);
+
+  const handlePercentUpdate = useCallback((moduleId, percent) => {
     setProgressMap((prev) => ({
       ...prev,
-      [moduleId]: { percent: Math.min(100, Math.max(0, percent)) },
+      [moduleId]: { 
+        ...(prev[moduleId] || { checks: {} }), 
+        percent 
+      },
     }));
+  }, []);
+
+  /* Reiniciar progreso de un módulo */
+  const handleResetProgress = useCallback((moduleId) => {
+    if (window.confirm('¿Estás seguro de que deseas reiniciar todo el progreso de este equipo?')) {
+      setProgressMap((prev) => {
+        const next = { ...prev };
+        delete next[moduleId];
+        return next;
+      });
+    }
   }, []);
 
   return (
     <>
       <InstitutionalHeader />
 
-      {/* Dashboard: solo cuando no hay módulo activo */}
       {!activeTab && (
         <HeroSection
           onSelect={handleSelectTab}
@@ -70,7 +102,6 @@ function App() {
         />
       )}
 
-      {/* Vista de módulo */}
       {activeTab && (
         <>
           <Navigation activeTab={activeTab} onSelect={handleSelectTab} />
@@ -89,15 +120,39 @@ function App() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  style={{ background: 'none', border: 'none', color: 'var(--td)', cursor: 'pointer', fontSize: '.75rem' }}
+                  className="clean-btn"
                   aria-label="Limpiar búsqueda"
                 >✕</button>
               )}
             </div>
 
-            {activeTab === 'aa'   && <AA6300   searchQuery={searchQuery} onProgress={(p) => handleProgressUpdate('aa', p)} />}
-            {activeTab === 'toc'  && <TOC      searchQuery={searchQuery} onProgress={(p) => handleProgressUpdate('toc', p)} />}
-            {activeTab === 'hplc' && <HPLC     searchQuery={searchQuery} onProgress={(p) => handleProgressUpdate('hplc', p)} />}
+            {activeTab === 'aa' && (
+              <AA6300 
+                searchQuery={searchQuery} 
+                progressData={progressMap.aa || {}}
+                onCheck={(id, val) => handleCheckUpdate('aa', id, val)}
+                onProgress={(p) => handlePercentUpdate('aa', p)}
+                onReset={() => handleResetProgress('aa')}
+              />
+            )}
+            {activeTab === 'toc' && (
+              <TOC 
+                searchQuery={searchQuery} 
+                progressData={progressMap.toc || {}}
+                onCheck={(id, val) => handleCheckUpdate('toc', id, val)}
+                onProgress={(p) => handlePercentUpdate('toc', p)}
+                onReset={() => handleResetProgress('toc')}
+              />
+            )}
+            {activeTab === 'hplc' && (
+              <HPLC 
+                searchQuery={searchQuery} 
+                progressData={progressMap.hplc || {}}
+                onCheck={(id, val) => handleCheckUpdate('hplc', id, val)}
+                onProgress={(p) => handlePercentUpdate('hplc', p)}
+                onReset={() => handleResetProgress('hplc')}
+              />
+            )}
             {activeTab === 'comp' && <CompInfo  searchQuery={searchQuery} />}
             {activeTab === 'tg'   && <TesisInfo searchQuery={searchQuery} />}
           </main>

@@ -7,10 +7,10 @@ export const StepAccordion = ({
   title, 
   machineCode, // 'aa', 'toc', 'hplc'
   children,
-  searchQuery = ''
+  searchQuery = '',
+  isAllCompleted = false // Nueva prop para marcar el acordeón como listo
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
 
   // Auto expand on search
   useEffect(() => {
@@ -20,12 +20,12 @@ export const StepAccordion = ({
   }, [searchQuery, title]);
 
   return (
-    <div className={`acc-item ${isOpen ? 'open' : ''} ${isCompleted ? 'completed' : ''}`}>
+    <div className={`acc-item ${isOpen ? 'open' : ''} ${(isAllCompleted) ? 'completed' : ''}`}>
       <button className="acc-h" onClick={() => setIsOpen(!isOpen)}>
         <span className={`sn ${machineCode}`}>{stepNum}</span>
         <span>{title}</span>
         <span className="chev">▾</span>
-        {isCompleted && <Check size={16} color="#10b981" style={{ marginLeft: '10px' }} />}
+        {isAllCompleted && <Check size={16} color="#10b981" style={{ marginLeft: '10px' }} />}
       </button>
       
       <AnimatePresence>
@@ -50,28 +50,28 @@ export const StepAccordion = ({
 export const SubItemCheck = ({ 
   title, 
   children, 
+  isChecked = false, // Prop para control externo
   onCheckChange 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
 
   const toggleCheck = (e) => {
     e.stopPropagation();
-    const newVal = !isChecked;
-    setIsChecked(newVal);
-    if(onCheckChange) onCheckChange(newVal);
+    if(onCheckChange) onCheckChange(!isChecked);
   };
 
   return (
     <div className={`sub-item ${isOpen ? 'open' : ''} ${isChecked ? 'completed' : ''}`}>
       <button className="sub-h" onClick={() => setIsOpen(!isOpen)}>
-        <button 
+        <div 
           className={`check-btn ${isChecked ? 'checked' : ''}`} 
           onClick={toggleCheck}
           title="Marcar paso como completado"
+          role="checkbox"
+          aria-checked={isChecked}
         >
           {isChecked && <Check size={12} strokeWidth={4} />}
-        </button>
+        </div>
         <span className="stxt">{title}</span>
         <span className="arrow">›</span>
       </button>

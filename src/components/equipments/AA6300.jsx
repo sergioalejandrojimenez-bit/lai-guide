@@ -1,18 +1,47 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StepAccordion, SubItemCheck, InfoBlock } from '../InteractiveChecklist';
+import { RotateCcw } from 'lucide-react';
 
-const AA6300 = ({ searchQuery }) => {
+const AA6300 = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) => {
+  const checks = progressData.checks || {};
+  
+  // Definición de todos los IDs de checks para este equipo
+  const allChecks = useMemo(() => [
+    'v-1', 'v-2', 'v-3', // Verificación
+    'w-1', 'w-2',       // WizAArd
+    'l-1',             // Lámparas
+    'p-1', 'p-2', 'p-3', // Programación
+    'i-1', 'i-2'        // Ignición
+  ], []);
+
+  // Calcular porcentaje cada vez que cambian los checks
+  useEffect(() => {
+    const completed = allChecks.filter(id => checks[id]).length;
+    const percent = Math.round((completed / allChecks.length) * 100);
+    onProgress(percent);
+  }, [checks, allChecks, onProgress]);
+
+  // Helper para saber si un grupo (acordeón) está completo
+  const getGroupStatus = (ids) => ids.every(id => checks[id]);
+
   return (
     <>
       <div className="sh">
         <div className="si aa">🔥</div>
         <div className="sm">
           <div className="sc">LAI-PNT-CEQ-12 · v1.2 · 2021-02-16</div>
-          <h2>Espectrofotómetro de Absorción Atómica — Shimadzu AA-6300</h2>
+          <div className="title-row">
+            <h2>Absorción Atómica — Shimadzu AA-6300</h2>
+            <button className="reset-btn" onClick={onReset} title="Reiniciar progreso de este equipo">
+              <RotateCcw size={14} />
+              Reiniciar
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="diagram-wrap">
+        {/* SVG Diagrama (se mantiene igual) */}
         <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           <defs>
             <marker id="ar" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#38bdf8" /></marker>
@@ -60,38 +89,62 @@ const AA6300 = ({ searchQuery }) => {
 
       <h3 className="sec-title">Procedimiento Operativo Paso a Paso</h3>
 
-      <StepAccordion stepNum="1" title="Verificación y Encendido" machineCode="aa" searchQuery={searchQuery}>
-        <SubItemCheck title={<>Verificar iluminación adecuada y ventilación correcta del sitio de trabajo</>}>
+      <StepAccordion stepNum="1" title="Verificación y Encendido" machineCode="aa" searchQuery={searchQuery} isAllCompleted={getGroupStatus(['v-1', 'v-2', 'v-3'])}>
+        <SubItemCheck 
+          title="Verificar iluminación adecuada y ventilación correcta del sitio de trabajo"
+          isChecked={checks['v-1']}
+          onCheckChange={(val) => onCheck('v-1', val)}
+        >
           <p>El AA-6300 opera con gases inflamables (acetileno C₂H₂ y óxido nitroso N₂O). La ventilación es <strong>requisito de seguridad, no opcional</strong>.</p>
           <p>Condiciones ambientales del manual (Anexo 1): temperatura <strong>10–35°C</strong>, humedad relativa <strong>20–80%</strong>. Asegúrese de que la campana de extracción esté funcionando si trabaja con llama.</p>
         </SubItemCheck>
-        <SubItemCheck title={<>Verificar conexiones: equipo, computador, impresora</>}>
+        <SubItemCheck 
+          title="Verificar conexiones: equipo, computador, impresora"
+          isChecked={checks['v-2']}
+          onCheckChange={(val) => onCheck('v-2', val)}
+        >
           <p>El AA-6300 se comunica con el PC a través del software WizAArd. Verifique que:</p>
           <p>• Cable de datos entre el equipo y el computador esté firmemente conectado<br/>
           • Requisitos eléctricos: <strong>AC 100V/120V/230V ±10%, 230VA, 50/60Hz</strong> — sin fluctuaciones de voltaje súbitas</p>
         </SubItemCheck>
-        <SubItemCheck title={<>Encender computador primero, luego el equipo AA (botón inferior derecho)</>}>
+        <SubItemCheck 
+          title="Encender computador primero, luego el equipo AA (botón inferior derecho)"
+          isChecked={checks['v-3']}
+          onCheckChange={(val) => onCheck('v-3', val)}
+        >
           <p>El orden es importante: <strong>PC primero → AA después</strong>. El botón de encendido del AA-6300 está ubicado en la parte <strong>inferior derecha de la cara frontal</strong> del equipo.</p>
         </SubItemCheck>
         <div className="warn">⚠ Antes de usar el equipo, asegúrese que <strong>no haya fugas de gas</strong>. Revisar mangueras y conexiones de C₂H₂ y gas de soporte.</div>
       </StepAccordion>
 
-      <StepAccordion stepNum="2" title="Ingreso al Software WizAArd" machineCode="aa" searchQuery={searchQuery}>
-        <SubItemCheck title={<>Doble clic en icono WizAArd del escritorio y Login</>}>
+      <StepAccordion stepNum="2" title="Ingreso al Software WizAArd" machineCode="aa" searchQuery={searchQuery} isAllCompleted={getGroupStatus(['w-1', 'w-2'])}>
+        <SubItemCheck 
+          title="Doble clic en icono WizAArd del escritorio y Login"
+          isChecked={checks['w-1']}
+          onCheckChange={(val) => onCheck('w-1', val)}
+        >
           <p>Seleccionar <strong>Operation → Measurement</strong> al abrir WizAArd.</p>
           <p>En la ventana "WizAArd Login":</p>
           <p>• <strong>Login ID:</strong> escribir <code>admin</code><br/>
           • <strong>Password:</strong> dejar el campo completamente vacío<br/>
           • Clic en <strong>OK</strong></p>
         </SubItemCheck>
-        <SubItemCheck title={<>En ventana Wizard Selection → dar Cancel</>}>
+        <SubItemCheck 
+          title="En ventana Wizard Selection → dar Cancel"
+          isChecked={checks['w-2']}
+          onCheckChange={(val) => onCheck('w-2', val)}
+        >
           <p>Al ingresar aparece automáticamente la ventana <strong>"Wizard Selection"</strong>. Dar clic en <strong>Cancel</strong> para ir directo a la pantalla principal de medición, desde donde se tiene control total del equipo.</p>
         </SubItemCheck>
       </StepAccordion>
 
-      <StepAccordion stepNum="3" title="Instalación y Verificación de Lámparas" machineCode="aa" searchQuery={searchQuery}>
+      <StepAccordion stepNum="3" title="Instalación y Verificación de Lámparas" machineCode="aa" searchQuery={searchQuery} isAllCompleted={getGroupStatus(['l-1'])}>
         <p style={{marginBottom:'10px', fontSize: '0.8rem'}}>El equipo dispone de 6 posiciones. Se iluminan 2 lámparas simultáneamente (1 activa + 1 warm-up).</p>
-        <SubItemCheck title={<>Instrument → Lamp Position Setup</>}>
+        <SubItemCheck 
+          title="Instrument → Lamp Position Setup"
+          isChecked={checks['l-1']}
+          onCheckChange={(val) => onCheck('l-1', val)}
+        >
           <p>Para verificar el estado, cambiar o instalar nueva lámpara, dirigirse a <strong>Instrument → Lamp Position Setup</strong>.</p>
           <p>1. Clic en el símbolo del elemento que desea cambiar<br/>
           2. Seleccionar el nuevo elemento de la lista desplegable (ej. Ca, Pb, Se)<br/>
@@ -100,14 +153,26 @@ const AA6300 = ({ searchQuery }) => {
         <div className="tip">💡 Las lámparas tienen horas de vida registradas. Verifique "Used Time" vs "Life Time" antes de iniciar un análisis largo.</div>
       </StepAccordion>
 
-      <StepAccordion stepNum="4" title="Programación del Equipo y Curva de Calibración" machineCode="aa" searchQuery={searchQuery}>
-        <SubItemCheck title={<>Seleccionar Elemento (Select Element / Periodic Table)</>}>
+      <StepAccordion stepNum="4" title="Programación del Equipo y Curva de Calibración" machineCode="aa" searchQuery={searchQuery} isAllCompleted={getGroupStatus(['p-1', 'p-2', 'p-3'])}>
+        <SubItemCheck 
+          title="Seleccionar Elemento (Select Element / Periodic Table)"
+          isChecked={checks['p-1']}
+          onCheckChange={(val) => onCheck('p-1', val)}
+        >
           <p>Aparece la ventana "Load Parameters" con las condiciones preconfiguradas: tipo de llama, corriente, longitud de onda.</p>
         </SubItemCheck>
-        <SubItemCheck title={<>Calibration Curve Setup: Número de puntos</>}>
+        <SubItemCheck 
+          title="Calibration Curve Setup: Número de puntos"
+          isChecked={checks['p-2']}
+          onCheckChange={(val) => onCheck('p-2', val)}
+        >
           <p>Configurar <strong>No. of Lines</strong> (número de estándares) y rellenar tabla con True Values.</p>
         </SubItemCheck>
-        <SubItemCheck title={<>Connect/Send Parameters: Esperar autodiagnóstico total</>}>
+        <SubItemCheck 
+          title="Connect/Send Parameters: Esperar autodiagnóstico total"
+          isChecked={checks['p-3']}
+          onCheckChange={(val) => onCheck('p-3', val)}
+        >
           <p>Hacer clic en <strong>"Connect/Send Parameters"</strong>. El equipo ejecuta la secuencia de inicialización completa.</p>
           <div className="flow">
             <span className="fs">ROM Check</span><span className="fa">→</span>
@@ -118,15 +183,23 @@ const AA6300 = ({ searchQuery }) => {
         </SubItemCheck>
       </StepAccordion>
 
-      <StepAccordion stepNum="5" title="Ignición, Line Search y Beam Balance" machineCode="aa" searchQuery={searchQuery}>
-        <SubItemCheck title={<>Completar Instrument Check List for Flame Analysis</>}>
+      <StepAccordion stepNum="5" title="Ignición, Line Search y Beam Balance" machineCode="aa" searchQuery={searchQuery} isAllCompleted={getGroupStatus(['i-1', 'i-2'])}>
+        <SubItemCheck 
+          title="Completar Instrument Check List for Flame Analysis"
+          isChecked={checks['i-1']}
+          onCheckChange={(val) => onCheck('i-1', val)}
+        >
           <p>Antes de encender la llama, marque <strong>cada cuadro</strong> confirmando:</p>
           <p>1. Presión suficiente de gases<br/>
           2. Quemador NO obstruido<br/>
           3. Tanque de drenaje lleno de agua</p>
           <div className="dang">🔴 Si la llama no se extingue con EXTINGUISH, apagar main unit POWER y cerrar válvula de gas.</div>
         </SubItemCheck>
-        <SubItemCheck title={<>Esperar Line Search y Beam Balance automáticos</>}>
+        <SubItemCheck 
+          title="Esperar Line Search y Beam Balance automáticos"
+          isChecked={checks['i-2']}
+          onCheckChange={(val) => onCheck('i-2', val)}
+        >
           <p>Después de ignición, el equipo busca el pico máximo (Line Search) y ajusta los haces (Beam Balance). Deben aparecer OK.</p>
         </SubItemCheck>
       </StepAccordion>
@@ -134,5 +207,3 @@ const AA6300 = ({ searchQuery }) => {
     </>
   );
 };
-
-export default AA6300;
