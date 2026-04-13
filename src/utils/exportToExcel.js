@@ -8,7 +8,7 @@
  *   3. Metadatos                   — ficha del análisis (instrumento, PNT, fecha, analito)
  */
 
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { sigFig } from './linearRegression';
 
 /* ─── Paleta institucional (ARGB para SheetJS) ─────────────────── */
@@ -75,7 +75,7 @@ function setCell(ws, row, col, value, style = {}) {
   const isFormula = typeof value === 'string' && value.startsWith('=');
   const isNum     = typeof value === 'number';
   ws[addr] = {
-    v: isFormula ? undefined : value,
+    v: isFormula ? 0 : value, // Fallback 0 para fórmulas
     f: isFormula ? value.slice(1) : undefined,
     t: isFormula ? 'n' : isNum ? 'n' : typeof value === 'boolean' ? 'b' : 's',
     s: style,
@@ -298,11 +298,11 @@ function buildCalibrationSheet(curve, standards, regression, instColor, instrCon
   setCell(ws, lineStartRow + 1, 11, curve.xLabel + ' (línea)', { fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
   setCell(ws, lineStartRow + 1, 12, 'Y ajustada (línea)', { fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
 
+  const steps = 40;
   if (validPts.length >= 2) {
     const xs    = validPts.map((p) => p.x);
     const xMin  = Math.min(...xs);
     const xMax  = Math.max(...xs);
-    const steps = 40;
     for (let i = 0; i <= steps; i++) {
       const x   = xMin + (i / steps) * (xMax - xMin);
       const row = lineStartRow + 2 + i;

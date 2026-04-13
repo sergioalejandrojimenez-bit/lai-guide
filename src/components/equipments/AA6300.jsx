@@ -77,18 +77,6 @@ const AA6300 = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }
         <div className="diagram-label">Esquema de componentes del AA-6300 (según Fig. 2, LAI-PNT-CEQ-12, p.4)</div>
       </div>
 
-      <div className="ref-card">
-        <img 
-          src="/shimadzu_aa6300.png" 
-          alt="Shimadzu AA-6300 Referencia Visual" 
-          className="ref-img"
-        />
-        <div className="ref-caption">
-          <span>📷</span>
-          <span>Referencia visual del equipo real — Modelo Shimadzu AA-6300</span>
-        </div>
-      </div>
-
       <div className="ig">
         <InfoBlock label="Rango λ" value="185 – 900 nm" />
         <InfoBlock label="Bandwidth" value="0.2 / 0.7 / 2.0 nm (auto)" />
