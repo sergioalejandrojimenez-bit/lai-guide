@@ -35,10 +35,15 @@ export function linearRegression(points) {
   const ssRes = validPoints.reduce((a, p) => a + (p.y - (m * p.x + b)) ** 2, 0);
   const r2 = ssTot === 0 ? 1 : Math.max(0, 1 - ssRes / ssTot);
 
+  // Estadísticas Avanzadas: Error Estándar (Syx), LOD y LOQ
+  const Syx = n > 2 ? Math.sqrt(ssRes / (n - 2)) : 0;
+  const lod = (m !== 0 && n > 2) ? (3.3 * Syx / Math.abs(m)) : 0;
+  const loq = (m !== 0 && n > 2) ? (10 * Syx / Math.abs(m)) : 0;
+
   const sign = b >= 0 ? '+' : '-';
   const equation = `y = ${m.toExponential(4)}x ${sign} ${Math.abs(b).toExponential(4)}`;
 
-  return { m, b, r2, valid: true, equation, points: validPoints };
+  return { m, b, r2, Syx, lod, loq, valid: true, equation, points: validPoints };
 }
 
 /**

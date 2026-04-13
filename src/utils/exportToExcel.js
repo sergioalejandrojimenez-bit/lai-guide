@@ -341,13 +341,14 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
   const hasRF   = Array.isArray(config.resultFields) && config.resultFields.length > 0;
 
   /* Definir columnas:
-   *   Name | Signal×ncurves | [Dilution] | ResultField×nrf | FinalResult
+   *   Name | Type | Signal×ncurves | [Dilution] | ResultField×nrf | FinalResult
    */
   const nrf       = hasRF ? config.resultFields.length : 0;
-  const totalCols = 1 + ncurves + (hasDF ? 1 : 0) + nrf + 1;
+  const totalCols = 2 + ncurves + (hasDF ? 1 : 0) + nrf + 1;
 
   ws['!cols'] = [
     { wch: 24 },
+    { wch: 14 },
     ...Array(ncurves).fill({ wch: 20 }),
     ...(hasDF ? [{ wch: 14 }] : []),
     ...Array(Math.max(nrf, 1)).fill({ wch: 20 }),
@@ -383,6 +384,7 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
 
   const hdrs = [
     'ID / Muestra',
+    'Tipo',
     ...config.curves.map(c => c.yLabel),
     ...(hasDF ? ['Factor dilución'] : []),
     ...(hasRF
@@ -412,6 +414,13 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
       font: f({ bold: true }),
     });
 
+    /* Tipo */
+    wc(ws, row, col++, sample.type || 'Muestra', {
+      ...base,
+      alignment: al('center'),
+      font: f({ italic: true, color: C.gray }),
+    });
+
     /* Señales por curva */
     config.curves.forEach(c => {
       const raw = sample.signals?.[c.id];
@@ -428,8 +437,8 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
     }
 
     /* ─── Calcular columna de inicio para resultados ─── */
-    // Estructura: A=name | B..=signals | [C_dilution] | D..=results | final
-    const signalColStart = 2;                                    // col B (1-indexed = 2)
+    // Estructura: A=name | B=type | C..=signals | [D_dilution] | E..=results | final
+    const signalColStart = 3;                                    // col C (1-indexed = 3)
     const dilColIdx      = hasDF ? signalColStart + ncurves : null;  // col de factor dilución
     const resColStart    = signalColStart + ncurves + (hasDF ? 1 : 0); // primera col resultado
 

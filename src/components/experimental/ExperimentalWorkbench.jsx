@@ -73,48 +73,71 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                 <th>#</th>
                 <th>{curve.xLabel}</th>
                 <th>{curve.yLabel}</th>
+                <th>Residual</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {standards.map((s, i) => (
-                <tr key={s.id}>
-                  <td className="row-num">{i + 1}</td>
-                  <td>
-                    <input
-                      className="exp-input"
-                      type="number"
-                      step="any"
-                      placeholder={curve.xPlaceholder}
-                      value={s.x}
-                      onChange={(e) => updateRow(s.id, 'x', e.target.value)}
-                      aria-label={`Estándar ${i+1} ${curve.xLabel}`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="exp-input"
-                      type="number"
-                      step="any"
-                      placeholder={curve.yPlaceholder}
-                      value={s.y}
-                      onChange={(e) => updateRow(s.id, 'y', e.target.value)}
-                      aria-label={`Estándar ${i+1} ${curve.yLabel}`}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      className="icon-btn danger"
-                      onClick={() => removeRow(s.id)}
-                      title="Eliminar fila"
-                      aria-label="Eliminar estándar"
-                      disabled={standards.length <= 2}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {standards.map((s, i) => {
+                let residualEl = <span style={{ color: '#aaa' }}>—</span>;
+                if (regression.valid && s.x !== '' && s.y !== '' && !isNaN(Number(s.x)) && !isNaN(Number(s.y))) {
+                  const x = Number(s.x);
+                  const y = Number(s.y);
+                  const predY = regression.m * x + regression.b;
+                  const res = y - predY;
+                  const absRes = Math.abs(res);
+
+                  let rColor = '#10b981'; // Green
+                  if (y !== 0 && absRes / Math.abs(y) > 0.10) rColor = '#ef4444'; // Red
+                  else if (y !== 0 && absRes / Math.abs(y) > 0.05) rColor = '#f59e0b'; // Yellow
+
+                  residualEl = (
+                    <span style={{ color: rColor, fontWeight: 500, fontFamily: 'var(--mono)', fontSize: '0.85rem' }}>
+                      {res > 0 ? '+' : ''}{res.toFixed(4)}
+                    </span>
+                  );
+                }
+
+                return (
+                  <tr key={s.id}>
+                    <td className="row-num">{i + 1}</td>
+                    <td>
+                      <input
+                        className="exp-input"
+                        type="number"
+                        step="any"
+                        placeholder={curve.xPlaceholder}
+                        value={s.x}
+                        onChange={(e) => updateRow(s.id, 'x', e.target.value)}
+                        aria-label={`Estándar ${i+1} ${curve.xLabel}`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="exp-input"
+                        type="number"
+                        step="any"
+                        placeholder={curve.yPlaceholder}
+                        value={s.y}
+                        onChange={(e) => updateRow(s.id, 'y', e.target.value)}
+                        aria-label={`Estándar ${i+1} ${curve.yLabel}`}
+                      />
+                    </td>
+                    <td>{residualEl}</td>
+                    <td>
+                      <button
+                        className="icon-btn danger"
+                        onClick={() => removeRow(s.id)}
+                        title="Eliminar fila"
+                        aria-label="Eliminar estándar"
+                        disabled={standards.length <= 2}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <button className="add-row-btn" onClick={addRow} style={{ color }}>
@@ -187,8 +210,21 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                 <div className="reg-params">
                   <span>m = {regression.m.toExponential(4)}</span>
                   <span>b = {regression.b.toExponential(4)}</span>
-                  <span>n = {regression.points.length} puntos</span>
+                  <span>n = {regression.points.length} pt</span>
                 </div>
+                {regression.points.length > 2 && (
+                  <div className="reg-adv" style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #eee', fontSize: '0.8rem', color: '#666', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <span title="Error Estándar de la Estimación" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{ color }}>S<sub>y/x</sub>:</strong> {regression.Syx.toExponential(3)}
+                    </span>
+                    <span title="Límite de Detección" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{ color }}>LOD:</strong> {regression.lod.toExponential(3)}
+                    </span>
+                    <span title="Límite de Cuantificación" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{ color }}>LOQ:</strong> {regression.loq.toExponential(3)}
+                    </span>
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -207,7 +243,7 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
 const SamplesPanel = ({ config, regressions }) => {
   const [samples, setSamples] = useState(() => {
     const saved = loadExp(config.id);
-    return saved?.samples ?? [{ id: uid(), name: 'Muestra 1', signals: {}, dilution: 1 }];
+    return saved?.samples ?? [{ id: uid(), name: 'Muestra 1', type: 'Muestra', signals: {}, dilution: 1 }];
   });
   const [analyte, setAnalyte] = useState(() => loadExp(config.id)?.analyte ?? '');
 
@@ -217,7 +253,7 @@ const SamplesPanel = ({ config, regressions }) => {
   }, [samples, analyte, config.id]);
 
   const addSample = () =>
-    setSamples((prev) => [...prev, { id: uid(), name: `Muestra ${prev.length + 1}`, signals: {}, dilution: 1 }]);
+    setSamples((prev) => [...prev, { id: uid(), name: `Muestra ${prev.length + 1}`, type: 'Muestra', signals: {}, dilution: 1 }]);
 
   const removeSample = (id) =>
     setSamples((prev) => prev.filter((s) => s.id !== id));
@@ -273,6 +309,7 @@ const SamplesPanel = ({ config, regressions }) => {
           <thead>
             <tr>
               <th>ID / Nombre</th>
+              <th>Tipo</th>
               {config.curves.map((c) => (
                 <th key={c.id}>{c.yLabel}</th>
               ))}
@@ -297,6 +334,20 @@ const SamplesPanel = ({ config, regressions }) => {
                       value={sample.name}
                       onChange={(e) => updateSample(sample.id, 'name', e.target.value)}
                     />
+                  </td>
+                  <td>
+                    <select
+                      className="exp-input narrow"
+                      value={sample.type || 'Muestra'}
+                      onChange={(e) => updateSample(sample.id, 'type', e.target.value)}
+                      style={{ minWidth: '95px' }}
+                    >
+                      <option value="Muestra">Muestra</option>
+                      <option value="Blanco">Blanco</option>
+                      <option value="Duplicado">Duplicado</option>
+                      <option value="Spike">Spike / Adición</option>
+                      <option value="CCV">Estándar (CCV)</option>
+                    </select>
                   </td>
                   {config.curves.map((c) => (
                     <td key={c.id}>
