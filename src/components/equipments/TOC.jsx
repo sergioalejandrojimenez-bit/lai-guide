@@ -39,7 +39,6 @@ const TOC = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) =
       </div>
 
       <div className="diagram-wrap">
-        {/* SVG Diagrama (se mantiene igual) */}
         <svg viewBox="0 0 720 180" xmlns="http://www.w3.org/2000/svg" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           <defs>
             <marker id="ar2" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#10b981" /></marker>
@@ -153,5 +152,3 @@ const TOC = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) =
 };
 
 export default TOC;
-e x p o r t   d e f a u l t   T O C ;  
- 
