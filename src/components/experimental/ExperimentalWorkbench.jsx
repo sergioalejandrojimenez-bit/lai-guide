@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { INSTRUMENT_CONFIGS } from './instrumentConfigs';
 import { linearRegression, regressionLine, sigFig, r2Quality } from '../../utils/linearRegression';
+import { exportWorkbenchToExcel } from '../../utils/exportToExcel';
 
 /* ─── Persistencia ──────────────────────────────────────────── */
 function storageKey(id) { return `lai_exp_${id}_v1`; }
@@ -417,29 +418,25 @@ const ExperimentalWorkbench = ({ instrumentId }) => {
     { id: 'samples',     label: 'Análisis de Muestras', icon: TestTube },
   ];
 
-  /* Exportar CSV de resultados */
-  const exportCSV = useCallback(() => {
-    const saved = loadExp(instrumentId);
-    if (!saved?.samples) return;
-    const rows = [['Muestra', ...config.curves.map((c) => c.yLabel), config.resultLabel]];
-    saved.samples.forEach((s) => {
-      const result = config.resultFormula(s.signals, regressions);
-      const resultVal = typeof result === 'object'
-        ? config.resultFields.map((f) => sigFig(result?.[f.key], 5)).join(' / ')
-        : sigFig(result, 5);
-      rows.push([
-        s.name,
-        ...config.curves.map((c) => s.signals[c.id] ?? ''),
-        resultVal,
-      ]);
-    });
-    const csv = rows.map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `LAI_${config.id.toUpperCase()}_resultados_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-  }, [instrumentId, config, regressions]);
+  /* Exportar a Excel (.xlsx) */
+  const [exporting, setExporting] = useState(false);
+
+  const exportExcel = useCallback(async () => {
+    const saved = loadExp(instrumentId) || {};
+    setExporting(true);
+    try {
+      await new Promise((r) => setTimeout(r, 50)); // dar tiempo al estado
+      exportWorkbenchToExcel({
+        config,
+        standardsByCurve,
+        regressions,
+        samples: saved.samples ?? [],
+        analyte: saved.analyte ?? '',
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [instrumentId, config, standardsByCurve, regressions]);
 
   const resetWorkbench = () => {
     if (!window.confirm('¿Reiniciar todos los datos experimentales de este instrumento?')) return;
@@ -462,8 +459,15 @@ const ExperimentalWorkbench = ({ instrumentId }) => {
           </div>
         </div>
         <div className="exp-header-actions">
-          <button className="exp-action-btn" onClick={exportCSV} title="Exportar resultados a CSV">
-            <Download size={14} /> CSV
+          <button
+            className="exp-action-btn excel-btn"
+            onClick={exportExcel}
+            disabled={exporting}
+            title="Exportar curvas y resultados a Excel (.xlsx)"
+            aria-label="Exportar a Excel"
+          >
+            <Download size={14} />
+            {exporting ? 'Generando…' : 'Exportar Excel'}
           </button>
           <button className="exp-action-btn danger" onClick={resetWorkbench} title="Reiniciar datos">
             <RotateCcw size={14} /> Reiniciar

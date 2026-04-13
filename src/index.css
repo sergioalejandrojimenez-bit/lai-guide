@@ -827,6 +827,21 @@ h3.sec-title { font-family: var(--serif); font-size: 1.1rem; color: var(--tb); m
 }
 .exp-action-btn:hover { color: var(--t); border-color: rgba(255,255,255,.15); }
 .exp-action-btn.danger:hover { color: #ef4444; border-color: rgba(239,68,68,.3); }
+.exp-action-btn.excel-btn {
+  border-color: rgba(16,185,129,.35);
+  color: #10b981;
+  background: rgba(16,185,129,.06);
+  font-weight: 600;
+}
+.exp-action-btn.excel-btn:hover {
+  background: rgba(16,185,129,.12);
+  border-color: #10b981;
+  color: #059669;
+}
+.exp-action-btn.excel-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
 
 /* Aviso de separación */
 .exp-disclaimer {
