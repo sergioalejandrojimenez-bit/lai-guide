@@ -1,4 +1,5 @@
 import React from 'react';
+import { UniValleLogo } from './InstitutionalHeader';
 
 const InstitutionalFooter = () => {
   return (
@@ -21,13 +22,13 @@ const InstitutionalFooter = () => {
       }}>
         {/* Columna 1: Identidad */}
         <div>
-          <div style={{ color: 'white', fontWeight: 700, fontSize: '14px', marginBottom: '12px', borderBottom: '1px solid #E30613', paddingBottom: '6px' }}>
-            Laboratorio de Análisis Industriales
+          <div style={{ marginBottom: '14px' }}>
+            <UniValleLogo height={60} showText={false} />
           </div>
           <p style={{ color: '#999', lineHeight: 1.7, fontSize: '12px' }}>
-            Laboratorio de investigación y análisis de la<br />
             <strong style={{ color: '#ddd' }}>Universidad del Valle</strong><br />
             Facultad de Ciencias Naturales y Exactas<br />
+            Laboratorio de Análisis Industriales<br />
             Cali, Colombia
           </p>
         </div>
