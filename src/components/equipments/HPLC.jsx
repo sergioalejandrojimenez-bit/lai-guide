@@ -75,6 +75,18 @@ const HPLC = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) 
         </svg>
       </div>
 
+      <div className="ref-card">
+        <img 
+          src="/shimadzu_hplc2010.png" 
+          alt="Shimadzu HPLC 2010 AHT Referencia Visual" 
+          className="ref-img"
+        />
+        <div className="ref-caption">
+          <span>📷</span>
+          <span>Sistema integrado HPLC Shimadzu LC-2010A HT ("All-in-one")</span>
+        </div>
+      </div>
+
       <div className="ig">
         <InfoBlock label="Software" value="LCsolution" />
         <InfoBlock label="Detector" value="UV-Vis dual (Ch1 + Ch2)" />

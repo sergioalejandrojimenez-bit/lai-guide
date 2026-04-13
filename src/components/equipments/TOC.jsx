@@ -77,6 +77,18 @@ const TOC = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) =
         </svg>
       </div>
 
+      <div className="ref-card">
+        <img 
+          src="/shimadzu_tocv.png" 
+          alt="Shimadzu TOC-V Referencia Visual" 
+          className="ref-img"
+        />
+        <div className="ref-caption">
+          <span>📷</span>
+          <span>Configuración típica del Shimadzu TOC-V con Autosampler</span>
+        </div>
+      </div>
+
       <div className="ig">
         <InfoBlock label="Método" value="Diferencial: TOC = TC − TIC" />
         <InfoBlock label="Oxidación" value="Combustión catalítica (Pt) a 680°C" />
