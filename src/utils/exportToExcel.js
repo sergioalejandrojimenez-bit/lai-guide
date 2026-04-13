@@ -55,7 +55,7 @@ function wc(ws, row, col, value, style = {}) {
   ws[addr] = {
     v: isF ? 0 : (value === null || value === undefined ? '' : value),
     ...(isF ? { f: value.slice(1) } : {}),
-    t: isF ? 'n' : isN ? 'n' : 'b' in (value ?? {}) ? 'b' : 's',
+    t: isF ? 'n' : isN ? 'n' : (typeof value === 'boolean' ? 'b' : 's'),
     s: style,
   };
 
