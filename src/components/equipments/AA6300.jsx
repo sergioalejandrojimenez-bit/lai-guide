@@ -41,7 +41,6 @@ const AA6300 = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }
       </div>
 
       <div className="diagram-wrap">
-        {/* SVG Diagrama (se mantiene igual) */}
         <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           <defs>
             <marker id="ar" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#38bdf8" /></marker>
@@ -207,5 +206,5 @@ const AA6300 = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }
     </>
   );
 };
-e x p o r t   d e f a u l t   A A 6 3 0 0 ;  
- 
+
+export default AA6300;
