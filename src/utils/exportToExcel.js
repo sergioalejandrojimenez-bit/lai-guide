@@ -372,12 +372,23 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
   );
 
   /* ── Encabezados ── */
-  const finalLabel = hasDF ? `${config.resultLabel} (con dilucuion)` : config.resultLabel;
+  // Para instrumentos de curva única con dilución, hay 2 columnas de resultado:
+  //   (a) Concentración en solución  (b) Concentración final (×FD) — verde
+  // Para instrumentos multi-resultados (TOC), cada campo + columna final.
+  const hasTwoCols = !hasRF && hasDF;  // AA, HPLC con factor de dilución
+
+  const finalLabel = hasDF
+    ? `${config.resultLabel} (con dilución)`
+    : config.resultLabel;
+
   const hdrs = [
     'ID / Muestra',
     ...config.curves.map(c => c.yLabel),
     ...(hasDF ? ['Factor dilución'] : []),
-    ...(hasRF ? config.resultFields.map(rf => rf.label) : []),
+    ...(hasRF
+      ? config.resultFields.map(rf => rf.label)
+      : (hasTwoCols ? [`${config.resultLabel} (en solución)`] : [])
+    ),
     finalLabel,
   ];
   hdrs.forEach((h, i) => wc(ws, 4, i + 1, h, {
@@ -416,50 +427,93 @@ function buildSamplesSheet(config, samples, regressions, analyte) {
       wc(ws, row, col++, df, { ...base, font: f({ bold: true }), numFmt: '0' });
     }
 
-    /* Calcular resultado */
-    const allValid = Object.values(regressions).every(r => r?.valid);
-    const result   = allValid
-      ? config.resultFormula(sample.signals ?? {}, regressions)
-      : null;
-    const dilution = hasDF ? +Number(sample.dilution || 1) : 1;
+    /* ─── Calcular columna de inicio para resultados ─── */
+    // Estructura: A=name | B..=signals | [C_dilution] | D..=results | final
+    const signalColStart = 2;                                    // col B (1-indexed = 2)
+    const dilColIdx      = hasDF ? signalColStart + ncurves : null;  // col de factor dilución
+    const resColStart    = signalColStart + ncurves + (hasDF ? 1 : 0); // primera col resultado
 
     if (hasRF) {
-      /* Instrumentos con múltiples campos de resultado (ej: TOC → TC, TIC, TOC) */
-      config.resultFields.forEach(rf => {
-        const val = result?.[rf.key];
-        const num = (val != null && isFinite(val)) ? +Number(sigFig(val, 5)) : null;
-        wc(ws, row, col++, num != null ? num : '—', {
+      /* ── Instrumentos multi-curva (ej. TOC: TC, TIC, TOC) ─────────
+       * Cada campo resultante = (Señal - b_curva) / m_curva
+       * Los coeficientes m y b se leen de la hoja de calibración correspondiente.
+       * Hoja cal: Cal_TC, Cal_TIC  — m en H5, b en H6                          */
+      config.resultFields.forEach((rf, ri) => {
+        // Buscar curva asociada al campo: por convenio el id del field coincide con el id de la curva
+        const matchCurve = config.curves.find(c => c.id.toLowerCase() === rf.key.toLowerCase())
+                        ?? config.curves[ri]
+                        ?? config.curves[0];
+
+        const calSheet   = `Cal_${matchCurve.id.toUpperCase()}`;
+        // Columna B + offset de la señal de esta curva dentro del bloque de señales
+        const sigCurveIdx = config.curves.findIndex(c => c.id === matchCurve.id);
+        const sigColLetter = XLSX.utils.encode_col(signalColStart - 1 + sigCurveIdx); // 0-indexed
+
+        // Fórmula: = (Señal - b) / m   con m=$H$5 y b=$H$6 de la hoja de calibración
+        const concFormula = `=(${sigColLetter}${row}-${calSheet}!$H$6)/${calSheet}!$H$5`;
+
+        wc(ws, row, col++, concFormula, {
           ...base,
           font:   f({ bold: rf.highlight, color: rf.highlight ? iColor : C.black }),
-          numFmt: num != null ? '0.0000' : undefined,
+          numFmt: '0.0000',
         });
       });
 
-      /* Columna final: resultado highlight × dilución (valor calculado directamente) */
-      const hlField    = config.resultFields.find(rf => rf.highlight) ?? config.resultFields[0];
-      const rawFinal   = result?.[hlField.key];
-      const finalNum   = (rawFinal != null && isFinite(rawFinal))
-        ? +Number(sigFig(rawFinal * dilution, 5))
-        : null;
-      wc(ws, row, col++, finalNum != null ? finalNum : '—', {
+      /* Columna final = resultado highlight × factor de dilución */
+      const hlIdx      = config.resultFields.findIndex(rf => rf.highlight);
+      const hlColIdx   = hlIdx >= 0 ? hlIdx : 0;
+      const hlColLetter = XLSX.utils.encode_col(resColStart - 1 + hlColIdx); // 0-indexed
+      const dfColLetter = hasDF ? XLSX.utils.encode_col(dilColIdx - 1) : null;
+
+      const finalFormula = dfColLetter
+        ? `=${hlColLetter}${row}*${dfColLetter}${row}`
+        : `=${hlColLetter}${row}`;
+
+      wc(ws, row, col++, finalFormula, {
         ...base,
-        font:   f({ bold: true, color: iColor }),
-        fill:   bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'),
-        numFmt: finalNum != null ? '0.0000' : undefined,
+        font: f({ bold: true, color: iColor }),
+        fill: bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'),
+        numFmt: '0.0000',
       });
+
     } else {
-      /* Instrumentos con un solo resultado (AA, HPLC)
-       * Se escribe el VALOR CALCULADO directamente — evita referencia circular. */
-      const rawConc  = (result != null && isFinite(result)) ? result : null;
-      const finalNum = rawConc != null ? +Number(sigFig(rawConc * dilution, 5)) : null;
-      wc(ws, row, col++, finalNum != null ? finalNum : '—', {
+      /* ── Instrumentos de una sola curva (AA, HPLC) ─────────────────
+       * Concentración = (Señal - b) / m
+       * El analista puede ver y verificar la fórmula directamente en Excel. */
+      const curve        = config.curves[0];
+      const calSheet     = `Cal_${curve.id.toUpperCase()}`;
+      const sigColLetter = XLSX.utils.encode_col(signalColStart - 1); // col B (idx 1 → letra B)
+
+      // Concentración en solución analizada = (Absorbancia - b) / m
+      // resColStart es 1-indexed; encode_col espera 0-indexed.
+      const concColLetter = XLSX.utils.encode_col(resColStart - 1);  // col donde va la concentración
+      const concFormula   = `=(${sigColLetter}${row}-${calSheet}!$H$6)/${calSheet}!$H$5`;
+
+      // Concentración final = conc_col × factor_dilución
+      // dfColLetter apunta a la columna del factor de dilución (encode_col es 0-indexed)
+      const dfColLetter  = hasDF ? XLSX.utils.encode_col(dilColIdx - 1) : null;
+      const finalFormula = dfColLetter
+        ? `=${concColLetter}${row}*${dfColLetter}${row}`
+        : concFormula;
+
+      /* Escribir la concentración sin dilución (columna resultado) */
+      wc(ws, row, col++, concFormula, {
         ...base,
-        font:   f({ bold: true, color: iColor }),
-        fill:   bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'),
-        numFmt: finalNum != null ? '0.0000' : undefined,
+        font:   f({ bold: false, color: C.black }),
+        numFmt: '0.0000',
       });
+
+      /* Escribir la concentración final con dilución (columna final — verde) */
+      if (hasDF) {
+        wc(ws, row, col++, finalFormula, {
+          ...base,
+          font: f({ bold: true, color: iColor }),
+          fill: bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'),
+          numFmt: '0.0000',
+        });
+      }
     }
-  });
+  });  // fin samples.forEach
 
   /* ── Notas PNT ── */
   if (config.notes?.length) {
