@@ -70,10 +70,10 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
           <table className="exp-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>{curve.xLabel}</th>
-                <th>{curve.yLabel}</th>
-                <th>Residual</th>
+                <th title="Número del estándar">#</th>
+                <th title={`Concentración teórica del estándar preparado. Unidades: ${curve.xUnit}`}>{curve.xLabel}</th>
+                <th title={`Señal analítica leída en el equipo (ej. Absorbancia, Área). Unidades: ${curve.yUnit}`}>{curve.yLabel}</th>
+                <th title="Residual del estándar. Diferencia entre la lectura real del equipo y lo que la recta dice que debería ser. Cálculo: Y_medido - Y_ajustado. Verde (≤5%), Naranja (≤10%), Rojo (>10%)">Residual</th>
                 <th></th>
               </tr>
             </thead>
@@ -197,7 +197,7 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                   <span className="reg-label">Ecuación:</span>
                   <code>{regression.equation}</code>
                 </div>
-                <div className="reg-r2">
+                <div className="reg-r2" title="Coeficiente de Determinación R². Mide la linealidad y calidad del ajuste (1.0 es ajuste perfecto). Cálculo estadístico del modelo de mínimos cuadrados." style={{cursor: 'help'}}>
                   <span className="reg-label">R²:</span>
                   <span style={{ color: q.color, fontWeight: 700 }}>
                     {regression.r2.toFixed(6)}
@@ -208,19 +208,19 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                   </span>
                 </div>
                 <div className="reg-params">
-                  <span>m = {regression.m.toExponential(4)}</span>
-                  <span>b = {regression.b.toExponential(4)}</span>
-                  <span>n = {regression.points.length} pt</span>
+                  <span title="Pendiente (m). Representa la sensibilidad analítica. Cambio de señal por cada unidad de concentración." style={{cursor: 'help'}}>m = {regression.m.toExponential(4)}</span>
+                  <span title="Intercepto (b). Señal teórica de la curva cuando la concentración es cero." style={{cursor: 'help'}}>b = {regression.b.toExponential(4)}</span>
+                  <span title="Número de puntos utilizados en la curva de calibración." style={{cursor: 'help'}}>n = {regression.points.length} pt</span>
                 </div>
                 {regression.points.length > 2 && (
                   <div className="reg-adv" style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #eee', fontSize: '0.8rem', color: '#666', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <span title="Error Estándar de la Estimación" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span title="Error Estándar de la Estimación (Sy/x). Mide el nivel de 'ruido' o dispersión de los puntos respecto a la curva. Cálculo: √[ Σ(Y_medido - Y_calculado)² / (n - 2) ]" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'help' }}>
                       <strong style={{ color }}>S<sub>y/x</sub>:</strong> {regression.Syx.toExponential(3)}
                     </span>
-                    <span title="Límite de Detección" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span title={`Límite de Detección (LOD). Mínima concentración donde puedes asegurar que la sustancia SÍ está presente. Unidades: ${curve.xUnit}. Cálculo: 3.3 × (Sy/x / pendiente)`} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'help' }}>
                       <strong style={{ color }}>LOD:</strong> {regression.lod.toExponential(3)}
                     </span>
-                    <span title="Límite de Cuantificación" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span title={`Límite de Cuantificación (LOQ). Mínima concentración donde el equipo lee el valor con exactitud y puedes reportarlo sin dudar. Unidades: ${curve.xUnit}. Cálculo: 10 × (Sy/x / pendiente)`} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'help' }}>
                       <strong style={{ color }}>LOQ:</strong> {regression.loq.toExponential(3)}
                     </span>
                   </div>
@@ -308,15 +308,15 @@ const SamplesPanel = ({ config, regressions }) => {
         <table className="exp-table samples-table">
           <thead>
             <tr>
-              <th>ID / Nombre</th>
-              <th>Tipo</th>
+              <th title="Identidad de la muestra u orden de trabajo.">ID / Nombre</th>
+              <th title="Categoría QA/QC (Blanco, Spike, CCV, Duplicado). Útil para control de calidad analítico.">Tipo</th>
               {config.curves.map((c) => (
-                <th key={c.id}>{c.yLabel}</th>
+                <th key={c.id} title={`Señal analítica medida por el equipo correspondiente a ${c.yLabel}`}>{c.yLabel}</th>
               ))}
-              {config.dilutionFactor && <th>Factor dilución</th>}
+              {config.dilutionFactor && <th title="Factor de Dilución (FD). Cuántas veces fue diluida la muestra original. Cálculo: Volumen Final / Volumen Inicial aliquota. Todo resultado final será multiplicado por este número.">Factor dilución</th>}
               {config.resultFields
-                ? config.resultFields.map((f) => <th key={f.key} style={{ color: f.color }}>{f.label}</th>)
-                : <th style={{ color: config.color }}>{config.resultLabel}</th>
+                ? config.resultFields.map((f) => <th key={f.key} style={{ color: f.color }} title={`Resultado interpolado desde la curva de calibración para ${f.label}`}>{f.label}</th>)
+                : <th style={{ color: config.color }} title={`Concentración final, incluyendo la multiplicación por factor de dilución (si aplica)`}>{config.resultLabel}</th>
               }
               <th></th>
             </tr>
