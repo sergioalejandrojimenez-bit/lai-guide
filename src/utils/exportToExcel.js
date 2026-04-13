@@ -1,573 +1,446 @@
 /**
- * Exportación a Excel (.xlsx) del Procedimiento Experimental — LAI
- * Usa SheetJS (xlsx) para generación en el navegador.
+ * Exportación a Excel (.xlsx) — LAI Procedimiento Experimental
+ * Librería: xlsx-js-style (API correcta: rgb sin prefijo FF, patternType, vertical:'center')
  *
- * Produce un libro con hasta 3 hojas por instrumento:
- *   1. Calibración [nombre curva]  — tabla de estándares + estadísticas + datos para gráfica
- *   2. Muestras                    — resultados con fórmulas Excel verificables
- *   3. Metadatos                   — ficha del análisis (instrumento, PNT, fecha, analito)
+ * Hojas generadas:
+ *   1. Calibración [curva]  — estándares + stats + datos para gráfica
+ *   2. Muestras             — resultados con fórmulas Excel verificables
+ *   3. Ficha del Análisis   — metadatos institucionales
  */
 
 import XLSX from 'xlsx-js-style';
 import { sigFig } from './linearRegression';
 
-/* ─── Paleta institucional (ARGB para SheetJS) ─────────────────── */
+/* ─── Paleta (RGB 6 chars — sin prefijo alpha) ─────────────────── */
 const C = {
-  red:       'FFE30613',  // Rojo Univalle
-  redLight:  'FFFCE8E8',
-  navy:      'FF1D428A',
-  navyLight: 'FFE8EEF7',
-  white:     'FFFFFFFF',
-  black:     'FF000000',
-  gray:      'FF6B7280',
-  grayBg:    'FFF9FAFB',
-  grayBd:    'FFE5E7EB',
-  amber:     'FFF59E0B',
-  green:     'FF10B981',
-  purple:    'FF8B5CF6',
-  greenBg:   'FFD1FAE5',
-  amberBg:   'FFFEF3C7',
-  redBg:     'FFFEE2E2',
-  headerBg:  'FF1E293B',
-  headerFg:  'FFF8FAFC',
-  rowAlt:    'FFF8FAFC',
+  red:      'E30613',   navyLight: 'E8EEF7',
+  navy:     '1D428A',   white:     'FFFFFF',
+  black:    '000000',   grayBg:    'F9FAFB',
+  gray:     '6B7280',   grayBd:    'D1D5DB',
+  headerBg: '1E293B',   headerFg:  'F8FAFC',
+  amber:    'F59E0B',   amberBg:   'FEF3C7',
+  green:    '10B981',   greenBg:   'D1FAE5',
+  purple:   '8B5CF6',   redBg:     'FEE2E2',
+  redLight: 'FCE8E8',   rowAlt:    'F1F5F9',
 };
 
-/* ─── Color de encabezado por instrumento ─────────────────────── */
 const INST_COLOR = { aa: C.amber, toc: C.green, hplc: C.purple };
 
-/* ─── Helpers de estilo ───────────────────────────────────────── */
-function font(opts = {}) {
-  return { name: 'Arial', sz: opts.sz ?? 10, bold: opts.bold ?? false,
-           color: { argb: opts.color ?? C.black }, italic: opts.italic ?? false };
-}
-function fill(argb) { return { type: 'pattern', pattern: 'solid', fgColor: { argb } }; }
-function border(color = C.grayBd) {
-  const s = { style: 'thin', color: { argb: color } };
+/* ─── Constructores de estilo (API xlsx-js-style correcta) ──────── */
+const f = (opts = {}) => ({
+  name: opts.name ?? 'Arial',
+  sz:   opts.sz   ?? 10,
+  bold: opts.bold ?? false,
+  italic: opts.italic ?? false,
+  color: { rgb: opts.color ?? C.black },
+});
+
+const bg = (rgb) => ({ patternType: 'solid', fgColor: { rgb } });
+
+const bd = (rgb = C.grayBd) => {
+  const s = { style: 'thin', color: { rgb } };
   return { top: s, bottom: s, left: s, right: s };
-}
-function align(h = 'left', v = 'middle', wrap = false) {
-  return { horizontal: h, vertical: v, wrapText: wrap };
-}
-function numFmt(fmt) { return fmt; }
+};
 
-/* ─── Aplica estilo a un rango de celdas ──────────────────────── */
-function styleRange(ws, startRow, startCol, endRow, endCol, style) {
-  for (let r = startRow; r <= endRow; r++) {
-    for (let c = startCol; c <= endCol; c++) {
-      const addr = XLSX.utils.encode_cell({ r: r - 1, c: c - 1 });
-      if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-      ws[addr].s = style;
-    }
-  }
-}
+const al = (h = 'left', v = 'center', wrap = false) => ({
+  horizontal: h, vertical: v, wrapText: wrap,
+});
 
-/* ─── Aplica estilo a una celda individual ────────────────────── */
-function styleCell(ws, row, col, style) {
+/* ─── Escribe celda en la hoja ──────────────────────────────────── */
+function wc(ws, row, col, value, style = {}) {
   const addr = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 });
-  if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-  ws[addr].s = { ...(ws[addr].s || {}), ...style };
-}
+  const isF  = typeof value === 'string' && value.startsWith('=');
+  const isN  = typeof value === 'number';
 
-/* ─── Escribe una celda con valor + estilo ────────────────────── */
-function setCell(ws, row, col, value, style = {}) {
-  const addr = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 });
-  const isFormula = typeof value === 'string' && value.startsWith('=');
-  const isNum     = typeof value === 'number';
   ws[addr] = {
-    v: isFormula ? 0 : value, // Fallback 0 para fórmulas
-    f: isFormula ? value.slice(1) : undefined,
-    t: isFormula ? 'n' : isNum ? 'n' : typeof value === 'boolean' ? 'b' : 's',
+    v: isF ? 0 : (value === null || value === undefined ? '' : value),
+    ...(isF ? { f: value.slice(1) } : {}),
+    t: isF ? 'n' : isN ? 'n' : 'b' in (value ?? {}) ? 'b' : 's',
     s: style,
   };
+
   if (!ws['!ref']) {
     ws['!ref'] = addr;
   } else {
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    const cell  = XLSX.utils.decode_cell(addr);
-    if (cell.r < range.s.r) range.s.r = cell.r;
-    if (cell.c < range.s.c) range.s.c = cell.c;
-    if (cell.r > range.e.r) range.e.r = cell.r;
-    if (cell.c > range.e.c) range.e.c = cell.c;
-    ws['!ref'] = XLSX.utils.encode_range(range);
+    const rng  = XLSX.utils.decode_range(ws['!ref']);
+    const cell = XLSX.utils.decode_cell(addr);
+    if (cell.r < rng.s.r) rng.s.r = cell.r;
+    if (cell.c < rng.s.c) rng.s.c = cell.c;
+    if (cell.r > rng.e.r) rng.e.r = cell.r;
+    if (cell.c > rng.e.c) rng.e.c = cell.c;
+    ws['!ref'] = XLSX.utils.encode_range(rng);
   }
 }
 
+/* Merge helper */
+function mg(ws, r1, c1, r2, c2) {
+  if (!ws['!merges']) ws['!merges'] = [];
+  ws['!merges'].push({ s: { r: r1 - 1, c: c1 - 1 }, e: { r: r2 - 1, c: c2 - 1 } });
+}
+
 /* ═══════════════════════════════════════════════════════════════
-   HOJA 1: CALIBRACIÓN (una por curva)
+   HOJA 1: CALIBRACIÓN
    ═══════════════════════════════════════════════════════════════ */
-function buildCalibrationSheet(curve, standards, regression, instColor, instrConfig) {
-  const ws = {};
-  const validPts = regression.points ?? [];
-  const n        = validPts.length;
+function buildCalSheet(curve, regression, instColor, config) {
+  const ws  = {};
+  const pts = regression.points ?? [];
+  const n   = pts.length;
 
-  // ── Columnas
   ws['!cols'] = [
-    { wch: 4  }, // A  #
-    { wch: 18 }, // B  Concentración
-    { wch: 18 }, // C  Señal medida
-    { wch: 18 }, // D  Y ajustado (curva)
-    { wch: 18 }, // E  Residual
-    { wch: 4  }, // F  separador
-    { wch: 22 }, // G  Parámetro
-    { wch: 22 }, // H  Valor
-    { wch: 26 }, // I  Notas
+    { wch: 5  }, // A  #
+    { wch: 22 }, // B  Concentración
+    { wch: 22 }, // C  Señal
+    { wch: 22 }, // D  Y ajustada
+    { wch: 20 }, // E  Residual
+    { wch: 3  }, // F  sep
+    { wch: 28 }, // G  Parámetro
+    { wch: 24 }, // H  Valor
+    { wch: 28 }, // I  Criterio
+    { wch: 3  }, // J  sep
+    { wch: 22 }, // K  X línea
+    { wch: 22 }, // L  Y línea
   ];
 
-  // ── Título principal
-  setCell(ws, 1, 1, instrConfig.title + ' — ' + curve.label, {
-    font: font({ sz: 14, bold: true, color: C.white }),
-    fill: fill(instColor),
-    alignment: align('left', 'middle'),
+  /* — Título — */
+  wc(ws, 1, 1, `${config.title} — ${curve.label}`, {
+    font: f({ sz: 13, bold: true, color: C.white }),
+    fill: bg(instColor),
+    alignment: al('left'),
   });
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]; // A1:I1
+  mg(ws, 1, 1, 1, 9);
 
-  // ── Sub-título
-  setCell(ws, 2, 1, instrConfig.subtitle, {
-    font: font({ sz: 10, italic: true, color: C.gray }),
-    fill: fill(C.grayBg),
-    alignment: align('left', 'middle'),
+  /* — Fecha — */
+  wc(ws, 1, 11, new Date().toLocaleDateString('es-CO'), {
+    font: f({ color: C.gray }), fill: bg(C.grayBg), alignment: al('right'),
   });
-  (ws['!merges'] ??= []).push({ s: { r: 1, c: 0 }, e: { r: 1, c: 8 } });
+  mg(ws, 1, 11, 1, 12);
 
-  // ── Fecha de exportación
-  setCell(ws, 2, 7, 'Fecha:', { font: font({ bold: true, color: C.gray }) });
-  setCell(ws, 2, 8, new Date().toLocaleDateString('es-CO'), { font: font({ color: C.gray }) });
-
-  // ── Encabezado de la tabla de estándares (fila 4)
-  const tblHeaders = ['#', curve.xLabel, curve.yLabel, 'Y ajustada (curva)', 'Residual'];
-  tblHeaders.forEach((h, i) => {
-    setCell(ws, 4, i + 1, h, {
-      font: font({ bold: true, color: C.white }),
-      fill: fill(C.headerBg),
-      border: border(C.headerBg),
-      alignment: align('center', 'middle'),
-    });
+  wc(ws, 2, 1, config.subtitle, {
+    font: f({ italic: true, color: C.gray }),
+    fill: bg(C.grayBg),
+    alignment: al('left'),
   });
+  mg(ws, 2, 1, 2, 9);
 
-  // ── Datos de estándares (filas 5…5+n-1)
-  validPts.forEach((pt, idx) => {
-    const row  = 5 + idx;
-    const altBg = idx % 2 === 0 ? C.white : C.rowAlt;
-    const rowStyle = { fill: fill(altBg), border: border(), alignment: align('right', 'middle') };
+  /* — Encabezados tabla de estándares — */
+  const tblH = ['#', curve.xLabel, curve.yLabel, 'Y ajustada (=m·x+b)', 'Residual (medido−ajustado)'];
+  tblH.forEach((h, i) => wc(ws, 4, i + 1, h, {
+    font: f({ bold: true, color: C.white }),
+    fill: bg(C.headerBg),
+    border: bd(C.headerBg),
+    alignment: al('center'),
+  }));
 
-    setCell(ws, row, 1, idx + 1, { ...rowStyle, alignment: align('center', 'middle') });
-    setCell(ws, row, 2, pt.x,    { ...rowStyle, numFmt: '#,##0.0000' });
-    setCell(ws, row, 3, pt.y,    { ...rowStyle, numFmt: '#,##0.0000' });
-    // Y ajustada = m*x + b  →  Excel formula using regression params in stats section
-    setCell(ws, row, 4, `=$H$${8}*B${row}+$H$${9}`, {
-      ...rowStyle,
-      font: font({ color: C.black }),
-      numFmt: '#,##0.0000',
-    });
-    setCell(ws, row, 5, `=C${row}-D${row}`, {
-      ...rowStyle,
-      font: font({ color: C.black }),
-      numFmt: '#,##0.0000',
-    });
+  /* — Datos estándares — */
+  pts.forEach((pt, idx) => {
+    const row   = 5 + idx;
+    const rowBg = idx % 2 === 0 ? C.white : C.rowAlt;
+    const base  = { fill: bg(rowBg), border: bd(), alignment: al('right') };
+
+    wc(ws, row, 1, idx + 1,      { ...base, alignment: al('center') });
+    wc(ws, row, 2, pt.x,         { ...base, numFmt: '0.0000' });
+    wc(ws, row, 3, pt.y,         { ...base, numFmt: '0.0000' });
+    wc(ws, row, 4, `=$H$6*B${row}+$H$7`, { ...base, font: f({ color: C.navy }), numFmt: '0.0000' });
+    wc(ws, row, 5, `=C${row}-D${row}`,   { ...base, font: f({ color: C.navy }), numFmt: '0.0000' });
   });
 
-  const dataEndRow = 4 + n;
+  /* — Parámetros de regresión (cols G-I, filas 4-10) — */
+  ['Parámetro', 'Valor', 'Criterio de aceptación (PNT)'].forEach((h, i) =>
+    wc(ws, 4, 7 + i, h, {
+      font: f({ bold: true, color: C.white }),
+      fill: bg(C.headerBg),
+      border: bd(C.headerBg),
+      alignment: al('center'),
+    })
+  );
 
-  // ── Totals / summary row
-  setCell(ws, dataEndRow + 1, 2, 'n (puntos válidos):', {
-    font: font({ bold: true, color: C.gray }),
-    alignment: align('right'),
-  });
-  setCell(ws, dataEndRow + 1, 3, n, {
-    font: font({ bold: true }),
-    alignment: align('right'),
-  });
-
-  // ── Separador (columna F vacía)
-  // ── Bloque de parámetros de regresión (columnas G-I, filas 4–12)
-  const paramHeader = (row, label) =>
-    setCell(ws, row, 7, label, {
-      font: font({ bold: true, color: C.white }),
-      fill: fill(C.headerBg),
-      alignment: align('left', 'middle'),
-    });
-
-  paramHeader(4, 'Parámetro de regresión');
-  setCell(ws, 4, 8, 'Valor', {
-    font: font({ bold: true, color: C.white }),
-    fill: fill(C.headerBg),
-    alignment: align('center', 'middle'),
-  });
-  setCell(ws, 4, 9, 'Criterio de aceptación', {
-    font: font({ bold: true, color: C.white }),
-    fill: fill(C.headerBg),
-    alignment: align('center', 'middle'),
-  });
-
-  const statsRows = [
-    ['Pendiente (m)',          regression.m,   '—'],
-    ['Intercepto (b)',         regression.b,   '—'],
-    ['R² (coef. determinación)', regression.r2, '≥ 0.999 (PNT)'],
-    ['Ecuación',               regression.equation, '—'],
-    ['n (puntos)',             n,              '≥ 3'],
+  const statsData = [
+    ['Pendiente (m)',          regression.m,        '—',             false],
+    ['Intercepto (b)',         regression.b,        '—',             false],
+    ['Coef. determinación R²', regression.r2,       '≥ 0.999',       true ],
+    ['Ecuación de la curva',   regression.equation, '—',             false],
+    ['n (puntos válidos)',      n,                   '≥ 3',           false],
+    ['Rango X',                n >= 2 ? `${Math.min(...pts.map(p=>p.x))} – ${Math.max(...pts.map(p=>p.x))} ${curve.xUnit}` : '—', '—', false],
   ];
 
-  const r2RowIndex = 5 + 2; // fila 7 = R²
-  statsRows.forEach(([label, value, criteria], i) => {
-    const row = 5 + i;
-    const isR2 = i === 2;
-    const r2Bg = isR2
-      ? regression.r2 >= 0.999 ? C.greenBg : regression.r2 >= 0.995 ? C.amberBg : C.redBg
-      : C.white;
+  statsData.forEach(([label, value, criteria, isR2], i) => {
+    const row   = 5 + i;
+    const r2Ok  = isR2 && typeof value === 'number' && value >= 0.999;
+    const r2Warn= isR2 && typeof value === 'number' && value >= 0.995 && value < 0.999;
+    const valueBg = isR2 ? (r2Ok ? C.greenBg : r2Warn ? C.amberBg : C.redBg) : (i % 2 === 0 ? C.grayBg : C.white);
+    const valueColor = isR2 ? (r2Ok ? '059669' : r2Warn ? 'B45309' : 'DC2626') : C.black;
 
-    setCell(ws, row, 7, label, {
-      font: font({ bold: i === 2 }),
-      fill: fill(C.grayBg),
-      border: border(),
-      alignment: align('left', 'middle'),
+    wc(ws, row, 7, label, {
+      font: f({ bold: isR2 }),
+      fill: bg(i % 2 === 0 ? C.grayBg : C.white),
+      border: bd(),
+      alignment: al('left'),
     });
-    setCell(ws, row, 8, typeof value === 'number' ? value : value, {
-      font: font({ bold: isR2, color: isR2 ? (regression.r2 >= 0.999 ? 'FF059669' : regression.r2 >= 0.995 ? 'FFB45309' : 'FFDC2626') : C.black }),
-      fill: fill(r2Bg),
-      border: border(),
-      alignment: align('right', 'middle'),
-      numFmt: typeof value === 'number' ? '0.000000' : undefined,
+    wc(ws, row, 8, typeof value === 'number' ? value : String(value), {
+      font: f({ bold: isR2, color: valueColor }),
+      fill: bg(valueBg),
+      border: bd(),
+      alignment: al('right'),
+      ...(typeof value === 'number' && isR2 ? { numFmt: '0.000000' } : {}),
+      ...(typeof value === 'number' && !isR2 ? { numFmt: '0.000000E+00' } : {}),
     });
-    setCell(ws, row, 9, criteria, {
-      font: font({ italic: true, color: C.gray }),
-      fill: fill(C.grayBg),
-      border: border(),
-      alignment: align('center', 'middle'),
-    });
-  });
-
-  // ── Verificación independiente con fórmulas Excel LINEST
-  const xRange  = `B5:B${4 + n}`;
-  const yRange  = `C5:C${4 + n}`;
-  setCell(ws, 11, 7, '— Verificación con fórmulas Excel —', {
-    font: font({ bold: true, italic: true, color: instColor.replace('FF', '') === instColor ? instColor : C.navy }),
-    fill: fill(C.navyLight),
-    alignment: align('center'),
-  });
-  (ws['!merges'] ??= []).push({ s: { r: 10, c: 6 }, e: { r: 10, c: 8 } });
-
-  [
-    ['SLOPE (m verificado)',      `=SLOPE(${yRange},${xRange})`],
-    ['INTERCEPT (b verificado)',  `=INTERCEPT(${yRange},${xRange})`],
-    ['RSQ (R² verificado)',       `=RSQ(${yRange},${xRange})`],
-  ].forEach(([label, formula], i) => {
-    const row = 12 + i;
-    setCell(ws, row, 7, label, {
-      font: font({ color: C.navy }),
-      fill: fill(C.navyLight),
-      border: border(C.navy + '44'),
-      alignment: align('left'),
-    });
-    setCell(ws, row, 8, formula, {
-      font: font({ bold: true, color: C.navy }),
-      fill: fill(C.navyLight),
-      border: border(C.navy + '44'),
-      alignment: align('right'),
-      numFmt: '0.000000',
-    });
-    setCell(ws, row, 9, 'Fórmula Excel nativa', {
-      font: font({ italic: true, color: C.gray }),
-      fill: fill(C.navyLight),
-      border: border(C.navy + '44'),
-      alignment: align('center'),
+    wc(ws, row, 9, criteria, {
+      font: f({ italic: true, color: C.gray }),
+      fill: bg(i % 2 === 0 ? C.grayBg : C.white),
+      border: bd(),
+      alignment: al('center'),
     });
   });
 
-  // ── Datos de la línea de regresión para graficar (columnas K-L)
-  ws['!cols'].push({ wch: 4  }, { wch: 18 }, { wch: 18 });
+  /* — Verificación con fórmulas Excel nativas — */
+  if (n >= 2) {
+    const xr = `B5:B${4+n}`, yr = `C5:C${4+n}`;
+    wc(ws, 12, 7, '✔ Verificación independiente (fórmulas Excel)', {
+      font: f({ bold: true, sz: 9, color: C.navy }),
+      fill: bg(C.navyLight),
+      alignment: al('left'),
+    });
+    mg(ws, 12, 7, 12, 9);
 
-  setCell(ws, 1, 11, '← DATOS PARA GRÁFICA (selecciona K:L e inserta gráfico de dispersión)', {
-    font: font({ bold: true, color: C.red }),
-    fill: fill(C.redLight),
-    alignment: align('left'),
-  });
-  (ws['!merges'] ??= []).push({ s: { r: 0, c: 10 }, e: { r: 0, c: 14 } });
-
-  setCell(ws, 2, 11, '▸ Estándares (puntos reales)', { font: font({ bold: true, color: C.gray }) });
-  setCell(ws, 3, 11, curve.xLabel, { font: font({ bold: true }), fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
-  setCell(ws, 3, 12, curve.yLabel, { font: font({ bold: true }), fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
-  validPts.forEach((pt, idx) => {
-    setCell(ws, 4 + idx, 11, pt.x, { numFmt: '#,##0.0000', alignment: align('right') });
-    setCell(ws, 4 + idx, 12, pt.y, { numFmt: '#,##0.0000', alignment: align('right') });
-  });
-
-  // Línea de regresión (60 puntos)
-  const lineStartRow = 4 + n + 2;
-  setCell(ws, lineStartRow, 11, '▸ Línea de regresión', { font: font({ bold: true, color: C.gray }) });
-  setCell(ws, lineStartRow + 1, 11, curve.xLabel + ' (línea)', { fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
-  setCell(ws, lineStartRow + 1, 12, 'Y ajustada (línea)', { fill: fill(C.headerBg), font: font({ bold: true, color: C.white }) });
-
-  const steps = 40;
-  if (validPts.length >= 2) {
-    const xs    = validPts.map((p) => p.x);
-    const xMin  = Math.min(...xs);
-    const xMax  = Math.max(...xs);
-    for (let i = 0; i <= steps; i++) {
-      const x   = xMin + (i / steps) * (xMax - xMin);
-      const row = lineStartRow + 2 + i;
-      setCell(ws, row, 11, +x.toFixed(6), { numFmt: '#,##0.0000', alignment: align('right') });
-      setCell(ws, row, 12, `=$H$8*K${row}+$H$9`, {
-        font: font({ color: C.black }),
-        numFmt: '#,##0.0000',
-        alignment: align('right'),
-      });
-    }
+    [
+      ['SLOPE(m)',     `=SLOPE(${yr},${xr})`],
+      ['INTERCEPT(b)', `=INTERCEPT(${yr},${xr})`],
+      ['RSQ(R²)',      `=RSQ(${yr},${xr})`],
+    ].forEach(([lbl, formula], i) => {
+      const row = 13 + i;
+      wc(ws, row, 7, lbl, { font: f({ color: C.navy }), fill: bg(C.navyLight), border: bd('93C5FD'), alignment: al('left') });
+      wc(ws, row, 8, formula, { font: f({ bold: true, color: C.navy }), fill: bg(C.navyLight), border: bd('93C5FD'), alignment: al('right'), numFmt: '0.000000' });
+      wc(ws, row, 9, 'Resultado Excel nativo', { font: f({ italic: true, color: C.gray }), fill: bg(C.navyLight), border: bd('93C5FD'), alignment: al('center') });
+    });
   }
 
-  // ── Instrucciones para crear la gráfica
-  const instrRow = lineStartRow + steps + 5;
-  setCell(ws, instrRow,     11, '📊 Cómo crear la gráfica en Excel:', { font: font({ bold: true, sz: 11 }) });
-  setCell(ws, instrRow + 1, 11, '1. Selecciona el rango K:L con los datos de la línea de regresión', { font: font({ color: C.gray }) });
-  setCell(ws, instrRow + 2, 11, '2. Insertar → Gráfico → Dispersión (X,Y) → Dispersión con líneas suavizadas', { font: font({ color: C.gray }) });
-  setCell(ws, instrRow + 3, 11, '3. Clic derecho en la gráfica → Seleccionar datos → Agregar serie con los estándares (columnas K:L, parte superior)', { font: font({ color: C.gray }) });
-  setCell(ws, instrRow + 4, 11, '4. Cambiar el tipo de la serie de estándares a "Dispersión sin líneas" para mostrar los puntos reales', { font: font({ color: C.gray }) });
-  setCell(ws, instrRow + 5, 11, '5. Agregar título del eje X: ' + curve.xLabel + '   Eje Y: ' + curve.yLabel, { font: font({ color: C.gray }) });
+  /* — Datos para gráfica (cols K–L) — */
+  wc(ws, 1, 11, '← Selecciona K:L e inserta un gráfico de dispersión en Excel', {
+    font: f({ bold: true, color: C.red }),
+    fill: bg(C.redLight),
+    alignment: al('left'),
+  });
+  mg(ws, 1, 11, 1, 12);
+
+  // Puntos reales
+  wc(ws, 3, 11, '▸ Puntos reales (estándares)', { font: f({ bold: true, color: C.gray }), fill: bg(C.grayBg) });
+  wc(ws, 4, 11, curve.xLabel,  { font: f({ bold: true, color: C.white }), fill: bg(C.headerBg), border: bd(C.headerBg), alignment: al('center') });
+  wc(ws, 4, 12, curve.yLabel,  { font: f({ bold: true, color: C.white }), fill: bg(C.headerBg), border: bd(C.headerBg), alignment: al('center') });
+  pts.forEach((pt, i) => {
+    wc(ws, 5 + i, 11, pt.x, { numFmt: '0.0000', alignment: al('right'), border: bd() });
+    wc(ws, 5 + i, 12, pt.y, { numFmt: '0.0000', alignment: al('right'), border: bd() });
+  });
+
+  // Línea de regresión (50 puntos)
+  if (n >= 2) {
+    const xVals = pts.map(p => p.x);
+    const xMin  = Math.min(...xVals), xMax = Math.max(...xVals);
+    const lineR = 5 + n + 2;
+    wc(ws, lineR - 1, 11, '▸ Línea de regresión (para la curva)', { font: f({ bold: true, color: C.gray }), fill: bg(C.grayBg) });
+    wc(ws, lineR, 11, `${curve.xLabel} (modelo)`, { font: f({ bold: true, color: C.white }), fill: bg(C.headerBg), border: bd(C.headerBg), alignment: al('center') });
+    wc(ws, lineR, 12, 'Y ajustada',                { font: f({ bold: true, color: C.white }), fill: bg(C.headerBg), border: bd(C.headerBg), alignment: al('center') });
+    for (let i = 0; i <= 50; i++) {
+      const x   = xMin + (i / 50) * (xMax - xMin);
+      const row = lineR + 1 + i;
+      wc(ws, row, 11, +x.toFixed(6), { numFmt: '0.0000', alignment: al('right'), border: bd() });
+      wc(ws, row, 12, `=$H$6*K${row}+$H$7`, { font: f({ color: C.navy }), numFmt: '0.0000', alignment: al('right'), border: bd() });
+    }
+
+    // Instrucciones gráfica
+    const instrR = lineR + 54;
+    wc(ws, instrR,     11, '📊 Crear gráfica en Excel:', { font: f({ bold: true, sz: 10 }) });
+    wc(ws, instrR + 1, 11, '1. Seleccionar el rango K:L de la línea de regresión → Insertar → Dispersión (X,Y) con líneas suavizadas', { font: f({ sz: 9, color: C.gray }) });
+    wc(ws, instrR + 2, 11, '2. Clic derecho → Seleccionar datos → Agregar serie con los puntos reales (filas 4–' + (4 + n) + ' de cols K:L)', { font: f({ sz: 9, color: C.gray }) });
+    wc(ws, instrR + 3, 11, '3. Cambiar tipo de esa serie a "Dispersión solo puntos" para ver los estándares como puntos sobre la curva', { font: f({ sz: 9, color: C.gray }) });
+  }
 
   return ws;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HOJA 2: MUESTRAS Y RESULTADOS
+   HOJA 2: MUESTRAS
    ═══════════════════════════════════════════════════════════════ */
 function buildSamplesSheet(config, samples, regressions, analyte) {
-  const ws     = {};
-  const instColor = INST_COLOR[config.id] ?? C.navy;
+  const ws      = {};
+  const iColor  = INST_COLOR[config.id] ?? C.navy;
+  const ncurves = config.curves.length;
+  const hasDF   = !!config.dilutionFactor;
+  const hasRF   = !!config.resultFields;
+
+  const resultCols = hasRF ? config.resultFields.length : 1;
+  const totalCols  = 1 + ncurves + (hasDF ? 1 : 0) + resultCols + 1;
 
   ws['!cols'] = [
-    { wch: 22 }, // A  ID Muestra
-    ...config.curves.map(() => ({ wch: 20 })),         // B… señales
-    ...(config.dilutionFactor ? [{ wch: 14 }] : []),  // factor dilución
-    ...(config.resultFields
-      ? config.resultFields.map((f) => ({ wch: 20 }))
-      : [{ wch: 20 }]),                                // resultados
-    { wch: 20 },                                       // concentración final
+    { wch: 24 },
+    ...Array(ncurves).fill({ wch: 20 }),
+    ...(hasDF ? [{ wch: 14 }] : []),
+    ...Array(resultCols).fill({ wch: 20 }),
+    { wch: 26 },
   ];
 
-  // Título
-  setCell(ws, 1, 1, config.title + ' — Resultados de Muestras', {
-    font: font({ sz: 13, bold: true, color: C.white }),
-    fill: fill(instColor),
-    alignment: align('left', 'middle'),
+  /* — Título — */
+  wc(ws, 1, 1, `${config.title} — Resultados de Muestras`, {
+    font: f({ sz: 13, bold: true, color: C.white }),
+    fill: bg(iColor),
+    alignment: al('left'),
   });
-  const totalCols = 1 + config.curves.length + (config.dilutionFactor ? 1 : 0) +
-    (config.resultFields?.length ?? 1) + 1;
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } }];
+  mg(ws, 1, 1, 1, totalCols);
 
-  // Analito
   if (analyte) {
-    setCell(ws, 2, 1, 'Analito / Compuesto:', { font: font({ bold: true, color: C.gray }) });
-    setCell(ws, 2, 2, analyte, { font: font({ bold: true }) });
+    wc(ws, 2, 1, 'Analito:', { font: f({ bold: true, color: C.gray }), fill: bg(C.grayBg) });
+    wc(ws, 2, 2, analyte,   { font: f({ bold: true }),                 fill: bg(C.grayBg) });
   }
-  setCell(ws, 2, config.curves.length + 2, 'Fecha:', { font: font({ bold: true, color: C.gray }) });
-  setCell(ws, 2, config.curves.length + 3, new Date().toLocaleDateString('es-CO'), { font: font() });
+  wc(ws, 2, totalCols - 1, 'Fecha:', { font: f({ bold: true, color: C.gray }), fill: bg(C.grayBg), alignment: al('right') });
+  wc(ws, 2, totalCols,     new Date().toLocaleDateString('es-CO'), { font: f(), fill: bg(C.grayBg) });
 
-  // Encabezados tabla
-  const headers = [
+  /* — Encabezados — */
+  const hdrs = [
     'ID / Muestra',
-    ...config.curves.map((c) => c.yLabel),
-    ...(config.dilutionFactor ? ['Factor de dilución'] : []),
-    ...(config.resultFields
-      ? config.resultFields.map((f) => f.label)
-      : [config.resultLabel]),
-    'Concentración final (aplicando dilución)',
+    ...config.curves.map(c => c.yLabel),
+    ...(hasDF ? ['Factor dilución'] : []),
+    ...(hasRF ? config.resultFields.map(f_ => f_.label) : [config.resultLabel]),
+    'Resultado final (con dilución)',
   ];
+  hdrs.forEach((h, i) => wc(ws, 4, i + 1, h, {
+    font: f({ bold: true, color: C.white }),
+    fill: bg(C.headerBg),
+    border: bd(C.headerBg),
+    alignment: al('center', 'center', true),
+  }));
 
-  headers.forEach((h, i) => {
-    setCell(ws, 4, i + 1, h, {
-      font: font({ bold: true, color: C.white }),
-      fill: fill(C.headerBg),
-      border: border(C.headerBg),
-      alignment: align('center', 'middle', true),
-    });
-  });
-
-  // Datos de muestras
+  /* — Datos de muestras — */
   samples.forEach((sample, idx) => {
     const row    = 5 + idx;
-    const altBg  = idx % 2 === 0 ? C.white : C.rowAlt;
-    const baseStyle = { fill: fill(altBg), border: border(), alignment: align('right', 'middle') };
-
+    const rowBg  = idx % 2 === 0 ? C.white : C.rowAlt;
+    const base   = { fill: bg(rowBg), border: bd(), alignment: al('right') };
     let col = 1;
-    setCell(ws, row, col++, sample.name, { ...baseStyle, alignment: align('left', 'middle') });
 
-    // Señales medidas
-    config.curves.forEach((c) => {
+    wc(ws, row, col++, sample.name, { ...base, alignment: al('left'), font: f({ bold: true }) });
+
+    config.curves.forEach(c => {
       const val = sample.signals?.[c.id];
-      setCell(ws, row, col++, val !== undefined && val !== '' ? Number(val) : '', {
-        ...baseStyle, numFmt: '0.000000',
+      wc(ws, row, col++, val !== undefined && val !== '' ? +Number(val).toFixed(6) : '', {
+        ...base, numFmt: '0.000000',
       });
     });
 
-    // Factor de dilución
-    if (config.dilutionFactor) {
-      setCell(ws, row, col++, Number(sample.dilution) || 1, {
-        ...baseStyle, font: font({ bold: true }), numFmt: '0',
+    if (hasDF) {
+      wc(ws, row, col++, +Number(sample.dilution || 1).toFixed(0), {
+        ...base, font: f({ bold: true }), numFmt: '0',
       });
     }
 
-    // Resultados calculados (concentraciones de la curva)
-    const result = (() => {
-      const allValid = Object.values(regressions).every((r) => r?.valid);
-      if (!allValid) return null;
-      return config.resultFormula(sample.signals ?? {}, regressions);
-    })();
+    // Resultados calculados
+    const allValid = Object.values(regressions).every(r => r?.valid);
+    const result   = allValid ? config.resultFormula(sample.signals ?? {}, regressions) : null;
 
-    if (config.resultFields) {
-      config.resultFields.forEach((f) => {
-        const val = result?.[f.key];
-        setCell(ws, row, col++, val != null ? +sigFig(val, 6) : 'Sin datos', {
-          ...baseStyle,
-          font: font({ bold: f.highlight, color: f.highlight ? instColor.replace('FF', '') : C.black }),
-          numFmt: val != null ? '0.0000' : undefined,
+    if (hasRF) {
+      config.resultFields.forEach((rf, ri) => {
+        const val = result?.[rf.key];
+        wc(ws, row, col++, val != null ? +sigFig(val, 5) : '—', {
+          ...base,
+          font: f({ bold: rf.highlight, color: rf.highlight ? iColor : C.black }),
+          ...(val != null ? { numFmt: '0.0000' } : {}),
         });
       });
+      // Resultado final con dilución: buscar columna highlight
+      const highlightIdx = config.resultFields.findIndex(rf => rf.highlight);
+      const hlCol = highlightIdx >= 0
+        ? XLSX.utils.encode_col(1 + ncurves + (hasDF ? 1 : 0) + highlightIdx)
+        : null;
+      const dfCol = hasDF ? XLSX.utils.encode_col(1 + ncurves) : null;
+      const finalVal = result?.[config.resultFields[highlightIdx >= 0 ? highlightIdx : 0]?.key];
+      wc(ws, row, col++, finalVal != null
+        ? (dfCol ? `=${hlCol}${row}*${dfCol}${row}` : `=${hlCol}${row}`)
+        : '—',
+        { ...base, font: f({ bold: true, color: iColor }), fill: bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'), numFmt: finalVal != null ? '0.0000' : undefined }
+      );
     } else {
-      setCell(ws, row, col++, result != null ? +sigFig(result, 6) : 'Sin datos', {
-        ...baseStyle,
-        font: font({ bold: true, color: instColor.replace('FF', '') }),
-        numFmt: result != null ? '0.0000' : undefined,
-      });
-    }
-
-    // Concentración final con dilución
-    const dilCol  = config.dilutionFactor
-      ? XLSX.utils.encode_col(1 + config.curves.length) // col dilución
-      : null;
-    const resultColIndex = 1 + config.curves.length + (config.dilutionFactor ? 1 : 0);
-
-    if (config.resultFields) {
-      // Para TOC: columna del TOC final
-      const tocIdx = config.resultFields.findIndex((f) => f.highlight);
-      if (tocIdx >= 0) {
-        const tocColLetter = XLSX.utils.encode_col(resultColIndex + tocIdx);
-        setCell(ws, row, col++,
-          result != null
-            ? `=${tocColLetter}${row}${dilCol ? `*${dilCol}${row}` : ''}`
-            : 'Sin datos',
-          {
-            ...baseStyle,
-            font: font({ bold: true, color: instColor.replace('FF', '') }),
-            fill: fill(idx % 2 === 0 ? C.greenBg : 'FFB7F5E3'),
-            numFmt: '0.0000',
-          }
-        );
-      }
-    } else {
-      const resultColLetter = XLSX.utils.encode_col(resultColIndex);
-      setCell(ws, row, col++,
-        result != null
-          ? `=${resultColLetter}${row}${dilCol ? `*${dilCol}${row}` : ''}`
-          : 'Sin datos',
-        {
-          ...baseStyle,
-          font: font({ bold: true }),
-          fill: fill(idx % 2 === 0 ? C.greenBg : 'FFB7F5E3'),
-          numFmt: '0.0000',
-        }
+      const resColLetter = XLSX.utils.encode_col(1 + ncurves + (hasDF ? 1 : 0));
+      const dfColLetter  = hasDF ? XLSX.utils.encode_col(1 + ncurves) : null;
+      wc(ws, row, col++, result != null
+        ? (dfColLetter ? `=${resColLetter}${row}*${dfColLetter}${row}` : `=${resColLetter}${row}`)
+        : '—',
+        { ...base, font: f({ bold: true, color: iColor }), fill: bg(idx % 2 === 0 ? C.greenBg : 'B7F5E3'), numFmt: result != null ? '0.0000' : undefined }
       );
     }
   });
 
   // Notas PNT
   if (config.notes?.length) {
-    const notesStartRow = 5 + samples.length + 2;
-    setCell(ws, notesStartRow, 1, '⚠ Notas del Procedimiento Normativo Técnico (PNT oficial):', {
-      font: font({ bold: true, sz: 11, color: C.red }),
+    const nr = 5 + samples.length + 2;
+    wc(ws, nr, 1, '⚠  Notas del PNT oficial (no modificar procedimiento):', {
+      font: f({ bold: true, sz: 10, color: C.red }),
     });
-    config.notes.forEach((note, i) => {
-      setCell(ws, notesStartRow + 1 + i, 1, `→  ${note}`, {
-        font: font({ italic: true, color: C.gray }),
-        alignment: align('left', 'middle', true),
-      });
-    });
+    config.notes.forEach((note, i) =>
+      wc(ws, nr + 1 + i, 1, `→  ${note}`, {
+        font: f({ italic: true, sz: 9, color: C.gray }),
+        alignment: al('left', 'center', true),
+      })
+    );
   }
-
   return ws;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HOJA 3: METADATOS / FICHA DEL ANÁLISIS
+   HOJA 3: FICHA DEL ANÁLISIS
    ═══════════════════════════════════════════════════════════════ */
 function buildMetaSheet(config, regressions, analyte) {
-  const ws = {};
-  const instColor = INST_COLOR[config.id] ?? C.navy;
+  const ws     = {};
+  const iColor = INST_COLOR[config.id] ?? C.navy;
+  ws['!cols']  = [{ wch: 4 }, { wch: 32 }, { wch: 40 }];
 
-  ws['!cols'] = [{ wch: 4 }, { wch: 30 }, { wch: 36 }];
-  ws['!merges'] = [];
-
-  // Logo / banner
-  setCell(ws, 1, 2, 'UNIVERSIDAD DEL VALLE', {
-    font: font({ sz: 16, bold: true, color: C.white }),
-    fill: fill(C.red),
-    alignment: align('center', 'middle'),
+  // Banner
+  wc(ws, 1, 2, 'UNIVERSIDAD DEL VALLE', {
+    font: f({ sz: 16, bold: true, color: C.white }),
+    fill: bg(C.red),
+    alignment: al('center'),
   });
-  setCell(ws, 2, 2, 'Laboratorio de Análisis Industriales — Facultad de Ciencias Naturales y Exactas', {
-    font: font({ sz: 10, color: C.white }),
-    fill: fill(C.red),
-    alignment: align('center', 'middle'),
+  mg(ws, 1, 2, 1, 3);
+  wc(ws, 2, 2, 'Laboratorio de Análisis Industriales — Facultad de Ciencias Naturales y Exactas', {
+    font: f({ sz: 10, color: C.white }),
+    fill: bg(C.red),
+    alignment: al('center'),
   });
-  ws['!merges'].push(
-    { s: { r: 0, c: 1 }, e: { r: 0, c: 2 } },
-    { s: { r: 1, c: 1 }, e: { r: 1, c: 2 } },
-  );
+  mg(ws, 2, 2, 2, 3);
 
   const fields = [
     ['Instrumento',         config.title],
-    ['Modelo / Equipo',     config.subtitle],
+    ['Modelo / Equipo',     config.subtitle.split('·')[0]?.trim() ?? '—'],
     ['Procedimiento (PNT)', config.subtitle.split('·')[1]?.trim() ?? '—'],
-    ['Analito / Compuesto', analyte || '—'],
-    ['Fecha de análisis',   new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
-    ['Exportado por',       '— (completar nombre del analista)'],
-    ['Revisado por',        '— (completar nombre del supervisor)'],
-    ['N° de informe',       '— (asignar número)'],
+    ['Analito / Compuesto', analyte || '— (completar)'],
+    ['Fecha de análisis',   new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })],
+    ['Nombre del analista', '— (completar)'],
+    ['Supervisado por',     '— (completar)'],
+    ['N° de informe',       '— (asignar)'],
   ];
 
   fields.forEach(([label, value], i) => {
-    const row = 4 + i;
-    setCell(ws, row, 2, label, {
-      font: font({ bold: true }),
-      fill: fill(i % 2 === 0 ? C.grayBg : C.white),
-      border: border(),
-      alignment: align('left', 'middle'),
-    });
-    setCell(ws, row, 3, value, {
-      font: font(),
-      fill: fill(i % 2 === 0 ? C.grayBg : C.white),
-      border: border(),
-      alignment: align('left', 'middle'),
-    });
+    const rowBg = i % 2 === 0 ? C.grayBg : C.white;
+    wc(ws, 4 + i, 2, label, { font: f({ bold: true }), fill: bg(rowBg), border: bd(), alignment: al('left') });
+    wc(ws, 4 + i, 3, value, { font: f(),               fill: bg(rowBg), border: bd(), alignment: al('left') });
   });
 
   // Resumen de calidad de curvas
-  setCell(ws, 4 + fields.length + 1, 2, 'Resumen de curvas de calibración', {
-    font: font({ bold: true, sz: 11, color: C.white }),
-    fill: fill(instColor),
-    alignment: align('left', 'middle'),
+  const qRow = 4 + fields.length + 2;
+  wc(ws, qRow, 2, 'Resumen de curvas de calibración', {
+    font: f({ bold: true, sz: 11, color: C.white }),
+    fill: bg(iColor),
+    alignment: al('left'),
   });
-  (ws['!merges'] ??= []).push({
-    s: { r: 4 + fields.length, c: 1 },
-    e: { r: 4 + fields.length, c: 2 },
-  });
+  mg(ws, qRow, 2, qRow, 3);
 
-  config.curves.forEach((curve, idx) => {
+  config.curves.forEach((curve, i) => {
     const reg  = regressions[curve.id];
-    const row  = 4 + fields.length + 2 + idx;
     const r2   = reg?.r2 ?? 0;
-    const qBg  = r2 >= 0.999 ? C.greenBg : r2 >= 0.995 ? C.amberBg : C.redBg;
-    const qFg  = r2 >= 0.999 ? 'FF059669' : r2 >= 0.995 ? 'FFB45309' : 'FFDC2626';
+    const qBg  = !reg?.valid ? C.grayBg : r2 >= 0.999 ? C.greenBg : r2 >= 0.995 ? C.amberBg : C.redBg;
+    const qFg  = !reg?.valid ? C.gray   : r2 >= 0.999 ? '059669'   : r2 >= 0.995 ? 'B45309'   : 'DC2626';
+    const verdict = !reg?.valid ? 'Sin datos' : r2 >= 0.999 ? '✓ APROBADA' : r2 >= 0.995 ? '⚠ REVISAR' : '✗ RECHAZAR';
 
-    setCell(ws, row, 2, curve.label, { font: font({ bold: true }), fill: fill(C.grayBg), border: border() });
-    setCell(ws, row, 3,
-      reg?.valid
-        ? `R² = ${r2.toFixed(6)}  |  ${reg.equation}  |  ${r2 >= 0.999 ? '✓ APROBADA' : r2 >= 0.995 ? '⚠ REVISAR' : '✗ RECHAZAR'}`
-        : 'Sin datos suficientes',
-      {
-        font: font({ bold: true, color: qFg }),
-        fill: fill(qBg),
-        border: border(),
-        alignment: align('left', 'middle'),
-      }
+    wc(ws, qRow + 1 + i, 2, curve.label, { font: f({ bold: true }), fill: bg(C.grayBg), border: bd() });
+    wc(ws, qRow + 1 + i, 3,
+      reg?.valid ? `R² = ${r2.toFixed(6)}   ${reg.equation}   ${verdict}` : 'Sin datos suficientes',
+      { font: f({ bold: true, color: qFg }), fill: bg(qBg), border: bd(), alignment: al('left') }
     );
   });
 
@@ -575,41 +448,33 @@ function buildMetaSheet(config, regressions, analyte) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FUNCIÓN PRINCIPAL DE EXPORTACIÓN
+   EXPORTACIÓN PRINCIPAL
    ═══════════════════════════════════════════════════════════════ */
 export function exportWorkbenchToExcel({ config, standardsByCurve, regressions, samples, analyte }) {
-  const wb        = XLSX.utils.book_new();
-  const instColor = INST_COLOR[config.id] ?? C.navy;
-  const date      = new Date().toISOString().slice(0, 10);
+  const wb      = XLSX.utils.book_new();
+  const iColor  = INST_COLOR[config.id] ?? C.navy;
+  const date    = new Date().toISOString().slice(0, 10);
 
-  // ── Una hoja de calibración por curva
+  // Hoja de calibración por cada curva
   config.curves.forEach((curve) => {
-    const ws = buildCalibrationSheet(
-      curve,
-      standardsByCurve[curve.id] ?? [],
-      regressions[curve.id] ?? { valid: false, points: [], m: 0, b: 0, r2: 0, equation: '—' },
-      instColor,
-      config,
-    );
-    const sheetName = `Calibración ${curve.id.toUpperCase()}`;
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    const reg = regressions[curve.id] ?? { valid: false, points: [], m: 0, b: 0, r2: 0, equation: '—' };
+    const ws  = buildCalSheet(curve, reg, iColor, config);
+    XLSX.utils.book_append_sheet(wb, ws, `Cal_${curve.id.toUpperCase()}`);
   });
 
-  // ── Hoja de muestras
-  if (samples?.length) {
-    const ws = buildSamplesSheet(config, samples, regressions, analyte);
-    XLSX.utils.book_append_sheet(wb, ws, 'Muestras y Resultados');
+  // Hoja de muestras
+  const sampleList = samples?.length ? samples : [];
+  if (sampleList.length > 0) {
+    const ws = buildSamplesSheet(config, sampleList, regressions, analyte);
+    XLSX.utils.book_append_sheet(wb, ws, 'Muestras');
   }
 
-  // ── Hoja de metadatos
-  const wsMeta = buildMetaSheet(config, regressions, analyte);
-  XLSX.utils.book_append_sheet(wb, wsMeta, 'Ficha del Análisis');
+  // Hoja de metadatos
+  XLSX.utils.book_append_sheet(wb, buildMetaSheet(config, regressions, analyte), 'Ficha');
 
-  // ── Nombre del archivo
-  const analiteName = analyte ? `_${analyte.replace(/[^a-zA-Z0-9]/g, '')}` : '';
-  const fileName = `LAI_${config.id.toUpperCase()}${analiteName}_${date}.xlsx`;
-
-  // ── Escribir y descargar
-  XLSX.writeFile(wb, fileName);
-  return fileName;
+  // Exportar
+  const tag  = analyte ? `_${analyte.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}` : '';
+  const name = `LAI_${config.id.toUpperCase()}${tag}_${date}.xlsx`;
+  XLSX.writeFile(wb, name);
+  return name;
 }
