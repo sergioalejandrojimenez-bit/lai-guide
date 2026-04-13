@@ -22,36 +22,26 @@ const InstitutionalHeader = () => {
         style={{ display: 'flex', alignItems: 'center', gap: '16px', textDecoration: 'none' }}
       >
         {/* Usando el componente con el código SVG oficial */}
-        <UniValleLogo height={65} />
+        <UniValleLogo height={60} />
         
-        <div style={{ borderLeft: '2px solid #E30613', paddingLeft: '14px' }}>
+        <div style={{ borderLeft: '2px solid #E30613', paddingLeft: '14px', marginLeft: '2px' }}>
           <div style={{ 
             fontFamily: 'Arial, sans-serif', 
-            fontWeight: 700, 
-            fontSize: '16px', 
-            color: '#1a1a1a', 
-            lineHeight: 1.2,
-            textTransform: 'uppercase'
-          }}>
-            Universidad del Valle
-          </div>
-          <div style={{ 
-            fontFamily: 'Arial, sans-serif', 
-            fontSize: '11px', 
+            fontSize: '12px', 
             color: '#444', 
-            lineHeight: 1.4, 
-            marginTop: '2px' 
+            lineHeight: 1.4,
+            fontWeight: 500
           }}>
             Facultad de Ciencias Naturales y Exactas
           </div>
           <div style={{ 
             fontFamily: 'Arial, sans-serif', 
-            fontSize: '11px', 
+            fontSize: '12px', 
             color: '#E30613', 
-            fontWeight: 700, 
+            fontWeight: 800, 
             lineHeight: 1.4,
             textTransform: 'uppercase',
-            letterSpacing: '0.02em'
+            letterSpacing: '0.01em'
           }}>
             Laboratorio de Análisis Industriales
           </div>
