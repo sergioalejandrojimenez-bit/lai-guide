@@ -153,3 +153,5 @@ const TOC = ({ searchQuery, progressData = {}, onCheck, onProgress, onReset }) =
 };
 
 export default TOC;
+e x p o r t   d e f a u l t   T O C ;  
+ 
