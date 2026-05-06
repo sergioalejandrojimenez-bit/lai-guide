@@ -1,29 +1,18 @@
 import React, { useState } from 'react';
-import { BookOpen, FlaskConical } from 'lucide-react';
+import { BookOpen, FlaskConical, FileBarChart2 } from 'lucide-react';
 import ExperimentalWorkbench from './ExperimentalWorkbench';
+import ReportGenerator from '../reports/ReportGenerator';
 
-/**
- * Envuelve cualquier componente de equipo y agrega la sub-navegación:
- *   [ 📋 Manual PNT ]  [ 🧪 Procedimiento Experimental ]
- *
- * El contenido del manual (children) nunca se modifica.
- * El workbench experimental es una sección completamente separada.
- */
-const EquipmentWrapper = ({
-  instrumentId,      // 'aa' | 'toc' | 'hplc'
-  children,          // <AA6300 /> / <TOC /> / <HPLC /> — intocable
-  searchQuery,
-}) => {
+const EquipmentWrapper = ({ instrumentId, children, searchQuery }) => {
   const [activeSection, setActiveSection] = useState('manual');
 
   return (
     <div className="eq-wrapper">
-      {/* Sub-navegación de sección */}
-      <div className="eq-subnav" role="tablist" aria-label="Sección del módulo">
+      <div className="eq-subnav" role="tablist" aria-label="Seccion del modulo">
         <button
           role="tab"
           aria-selected={activeSection === 'manual'}
-          className={`eq-tab ${activeSection === 'manual' ? 'active' : ''}`}
+          className={'eq-tab ' + (activeSection === 'manual' ? 'active' : '')}
           onClick={() => setActiveSection('manual')}
         >
           <BookOpen size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -34,25 +23,37 @@ const EquipmentWrapper = ({
         <button
           role="tab"
           aria-selected={activeSection === 'experimental'}
-          className={`eq-tab ${activeSection === 'experimental' ? 'active exp' : ''}`}
+          className={'eq-tab ' + (activeSection === 'experimental' ? 'active exp' : '')}
           onClick={() => setActiveSection('experimental')}
         >
           <FlaskConical size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Procedimiento Experimental</span>
           <span className="eq-tab-badge new">Nuevo</span>
         </button>
+
+        <button
+          role="tab"
+          aria-selected={activeSection === 'reports'}
+          className={'eq-tab ' + (activeSection === 'reports' ? 'active rpt' : '')}
+          onClick={() => setActiveSection('reports')}
+        >
+          <FileBarChart2 size={14} strokeWidth={1.8} aria-hidden="true" />
+          <span>Generador de Reportes</span>
+          <span className="eq-tab-badge rpt">Nuevo</span>
+        </button>
       </div>
 
-      {/* Contenido */}
       {activeSection === 'manual' && (
-        <div role="tabpanel" aria-label="Manual PNT">
-          {children}
-        </div>
+        <div role="tabpanel" aria-label="Manual PNT">{children}</div>
       )}
-
       {activeSection === 'experimental' && (
         <div role="tabpanel" aria-label="Procedimiento Experimental">
           <ExperimentalWorkbench instrumentId={instrumentId} />
+        </div>
+      )}
+      {activeSection === 'reports' && (
+        <div role="tabpanel" aria-label="Generador de Reportes">
+          <ReportGenerator instrumentId={instrumentId} />
         </div>
       )}
     </div>
