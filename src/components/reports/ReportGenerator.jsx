@@ -314,8 +314,8 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
             <div className="rpt2-logo-uv-sim">
               <svg viewBox="0 0 100 135" style={{ width: '48px', height: 'auto', display: 'block' }}>
                 <rect x="5" y="5" width="90" height="85" fill="#E30613" />
-                <path d="M 12 12 L 12 55 Q 12 76 35 76 L 50 76 L 50 32 L 35 32 L 35 12 Z" fill="#fff" />
-                <polygon points="30,32 88,32 59,85" fill="#fff" />
+                <path d="M 12 12 L 12 55 Q 12 76 35 76 L 60 76 L 60 32 L 35 32 L 35 12 Z" fill="#fff" />
+                <polygon points="35,32 90,32 62,88" fill="#fff" />
                 <text x="50" y="106" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">Universidad</text>
                 <text x="50" y="121" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">del Valle</text>
                 <line x1="8" y1="128" x2="92" y2="128" stroke="#E30613" strokeWidth="2" />
