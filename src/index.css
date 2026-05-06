@@ -2164,3 +2164,366 @@ h3.sec-title { font-family: var(--serif); font-size: 1.1rem; color: var(--tb); m
   transition: opacity .15s;
 }
 .edt-add-section-btn:hover { opacity: 1; }
+
+
+/* ===================================================
+   REPORTE v2 — rpt2-*  (layout de referencia)
+   Fondo blanco, colores institucionales en impresion
+   =================================================== */
+
+/* ── Encabezado navy ── */
+.rpt2-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .85rem 1.2rem;
+  background: linear-gradient(135deg, #1D428A 0%, #0f2454 100%);
+  gap: 1rem;
+}
+.rpt2-header-logos {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  flex: 1;
+}
+.rpt2-logo-uv {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+.rpt2-uv-box {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.rpt2-uv-u {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  font-family: Georgia, serif;
+  line-height: 1;
+}
+.rpt2-uv-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.rpt2-uv-text span {
+  font-size: .62rem;
+  color: rgba(255,255,255,.9);
+  letter-spacing: .02em;
+}
+.rpt2-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(255,255,255,.35);
+}
+.rpt2-lai-box {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.rpt2-lai-icon {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #E30613;
+  letter-spacing: .05em;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 5px;
+  padding: .15rem .45rem;
+}
+.rpt2-lai-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.rpt2-lai-text span {
+  font-size: .62rem;
+  color: rgba(255,255,255,.8);
+}
+.rpt2-header-tagline {
+  font-size: .62rem;
+  color: rgba(255,255,255,.6);
+  font-style: italic;
+  letter-spacing: .02em;
+  padding-left: .2rem;
+}
+
+/* QR placeholder */
+.rpt2-qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .3rem;
+  flex-shrink: 0;
+}
+.rpt2-qr-box {
+  width: 52px;
+  height: 52px;
+  background: #fff;
+  border-radius: 5px;
+  padding: 4px;
+}
+.rpt2-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+}
+.rpt2-qr-cell {
+  border-radius: 1px;
+  background: #ddd;
+}
+.rpt2-qr-cell.fill {
+  background: #1D428A;
+}
+.rpt2-qr-label {
+  font-size: .5rem;
+  color: rgba(255,255,255,.55);
+  text-align: center;
+}
+
+/* ── Titulo y metadatos del reporte ── */
+.rpt2-title-area {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: .85rem 1.2rem;
+  background: #f8f9fc;
+  border-bottom: 3px solid #E30613;
+}
+.rpt2-title-left { flex: 1; }
+.rpt2-doc-type {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #1D428A;
+  letter-spacing: .04em;
+  line-height: 1.1;
+}
+.rpt2-inst-name {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #E30613;
+  letter-spacing: .03em;
+  margin-top: .15rem;
+  text-transform: uppercase;
+}
+.rpt2-analyte {
+  font-size: .72rem;
+  color: #555;
+  font-style: italic;
+  margin-top: .2rem;
+}
+.rpt2-title-right { flex-shrink: 0; }
+.rpt2-meta-table {
+  border-collapse: collapse;
+  border: 1.5px solid #E30613;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: .72rem;
+}
+.rpt2-meta-table tr { border-bottom: 1px solid #E3061322; }
+.rpt2-mt-k {
+  background: #E30613;
+  color: #fff;
+  font-weight: 700;
+  padding: .25rem .6rem;
+  white-space: nowrap;
+  font-size: .65rem;
+  letter-spacing: .03em;
+}
+.rpt2-mt-v {
+  padding: .25rem .75rem;
+  color: #222;
+  font-family: monospace;
+  font-weight: 600;
+  font-size: .72rem;
+  background: #fff;
+}
+
+/* ── Layout de dos columnas ── */
+.rpt2-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #e0e4ee;
+}
+.rpt2-col {
+  padding: .65rem 1rem;
+  border-right: 1px solid #e0e4ee;
+}
+.rpt2-col:last-child { border-right: none; }
+
+/* ── Seccion completa (una columna) ── */
+.rpt2-full-section {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid #e0e4ee;
+}
+
+/* ── Encabezados de seccion ── */
+.rpt2-sec-header {
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #1D428A;
+  padding: .22rem .7rem;
+  border-radius: 3px;
+  margin-bottom: .55rem;
+  display: inline-block;
+}
+.rpt2-sec-header-sm {
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #1D428A;
+  border-bottom: 2px solid #1D428A22;
+  padding-bottom: .2rem;
+  margin-bottom: .4rem;
+}
+.rpt2-subsec-title {
+  font-size: .68rem;
+  font-weight: 700;
+  color: #333;
+  border-left: 3px solid;
+  padding: .2rem .5rem;
+  background: #f8f9fc;
+  margin-bottom: .35rem;
+}
+
+/* ── Tabla clave-valor ── */
+.rpt2-kv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .74rem;
+}
+.rpt2-kv-table tr { border-bottom: 1px solid #eef0f8; }
+.rpt2-kv-table tr:last-child { border-bottom: none; }
+.rpt2-kv-table td { padding: .22rem .3rem; vertical-align: top; }
+.rpt2-kv-table td:first-child {
+  font-weight: 700;
+  color: #444;
+  width: 45%;
+  white-space: nowrap;
+  padding-right: .5rem;
+}
+.rpt2-kv-table td:last-child { color: #222; }
+
+/* ── Tabla de datos analiticos ── */
+.rpt2-table-scroll { overflow-x: auto; margin-bottom: .4rem; }
+.rpt2-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .73rem;
+}
+.rpt2-data-table th {
+  padding: .3rem .55rem;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 2px solid #dde3f0;
+  text-align: left;
+  white-space: nowrap;
+}
+.rpt2-data-table td {
+  padding: .28rem .55rem;
+  border-bottom: 1px solid #edf0f8;
+  font-family: monospace;
+  font-size: .73rem;
+  color: #222;
+}
+
+/* ── Calibracion ── */
+.rpt2-cal-table-wrap { margin-top: .5rem; }
+
+/* ── Observaciones + firma ── */
+.rpt2-obs-sig-row {
+  display: flex;
+  gap: 1rem;
+  padding: .7rem 1rem;
+  border-bottom: 1px solid #e0e4ee;
+  background: #fafbfd;
+}
+.rpt2-obs-col { flex: 1; }
+.rpt2-obs-box {
+  font-size: .72rem;
+  color: #444;
+  line-height: 1.6;
+}
+.rpt2-obs-box p { margin-bottom: .2rem; }
+.rpt2-sig-col {
+  flex-shrink: 0;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .15rem;
+}
+.rpt2-sig-line {
+  width: 100%;
+  height: 1px;
+  background: #aaa;
+  margin-bottom: .3rem;
+}
+.rpt2-sig-name {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #222;
+}
+.rpt2-sig-role { font-size: .65rem; color: #666; }
+.rpt2-disclaimer {
+  font-size: .58rem;
+  color: #aaa;
+  font-style: italic;
+  margin-top: .6rem;
+  line-height: 1.4;
+  border-top: 1px solid #eee;
+  padding-top: .4rem;
+}
+
+/* ── Footer rojo ── */
+.rpt2-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: .4rem;
+  padding: .55rem 1.2rem;
+  background: #E30613;
+}
+.rpt2-footer-item {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  color: rgba(255,255,255,.9);
+  font-size: .58rem;
+}
+
+/* ── Print overrides para v2 ── */
+@media print {
+  body > * { display: none !important; }
+  #report-printable { display: block !important; }
+  .rpt2-two-col { grid-template-columns: 1fr 1fr !important; }
+  .rpt-page {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  @page { size: A4 portrait; margin: 0; }
+}
+
+/* ── Responsive v2 ── */
+@media (max-width: 640px) {
+  .rpt2-two-col { grid-template-columns: 1fr; }
+  .rpt2-title-area { flex-direction: column; }
+  .rpt2-header { flex-direction: column; align-items: flex-start; }
+  .rpt2-obs-sig-row { flex-direction: column; }
+  .rpt2-sig-col { width: 100%; }
+  .rpt2-footer { flex-direction: column; align-items: flex-start; gap: .3rem; }
+}
