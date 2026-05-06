@@ -81,94 +81,151 @@ function computeStats(section) {
 }
 
 /* ────────────────────────────────────────────────────────────
- * Mini grafica SVG de calibracion desde localStorage o calSections
+ * Mini grafica SVG de calibracion (Soporta Multicurva)
  * ──────────────────────────────────────────────────────────── */
 const CalibrationSVG = ({ instrumentId, color, calSections }) => {
-  const [calData, setCalData] = useState(null);
+  const [curvesData, setCurvesData] = useState([]);
 
   useEffect(() => {
-    // Intentar leer de calSections (prioridad si existe y tiene datos)
+    const COLORS = [color, '#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#be123c'];
+    let newCurves = [];
+
+    // 1. Intentar leer de calSections (múltiples tablas en el reporte)
     if (calSections && calSections.length > 0) {
-      for (const sec of calSections) {
-        if (!sec.rows || sec.rows.length < 2) continue;
-        const pts = sec.rows.map(row => ({ x: row[0], y: row[1] }));
-        const reg = linearRegression(pts);
+      calSections.forEach((sec, idx) => {
+        if (!sec.rows || sec.rows.length < 2) return;
+        const pts = sec.rows.map(row => ({ x: Number(row[0]), y: Number(row[1]) }));
+        // Filtrar NaN
+        const validPts = pts.filter(p => !isNaN(p.x) && !isNaN(p.y));
+        if (validPts.length < 2) return;
+        const reg = linearRegression(validPts);
         if (reg.valid) {
-          setCalData({ reg, pts: reg.points });
-          return;
+          newCurves.push({
+            id: 'sec_' + idx,
+            label: sec.title || `Analito ${idx + 1}`,
+            color: COLORS[idx % COLORS.length],
+            reg,
+            pts: reg.points
+          });
         }
-      }
+      });
     }
 
-    try {
-      const raw = localStorage.getItem('lai_exp_' + instrumentId + '_v1');
-      if (!raw) return;
-      const stored = JSON.parse(raw);
-      const curves = stored?.standards;
-      if (!curves) return;
-      // Tomar la primera curva disponible
-      const firstKey = Object.keys(curves)[0];
-      if (!firstKey) return;
-      const standards = curves[firstKey];
-      if (!Array.isArray(standards) || standards.length < 2) return;
-      const reg = linearRegression(standards);
-      if (!reg.valid) return;
-      setCalData({ reg, pts: reg.points });
-    } catch {}
-  }, [instrumentId, calSections]);
+    // 2. Fallback a localStorage si no hay curvas válidas
+    if (newCurves.length === 0) {
+      try {
+        const raw = localStorage.getItem('lai_exp_' + instrumentId + '_v1');
+        if (raw) {
+          const stored = JSON.parse(raw);
+          const sourceCurves = stored?.standardsByCurve || stored?.standards;
+          if (sourceCurves) {
+            Object.keys(sourceCurves).forEach((key, idx) => {
+              const standards = sourceCurves[key];
+              if (!Array.isArray(standards) || standards.length < 2) return;
+              const pts = standards.map(s => ({ x: Number(s.x), y: Number(s.y) })).filter(p => !isNaN(p.x) && !isNaN(p.y));
+              if (pts.length < 2) return;
+              const reg = linearRegression(pts);
+              if (reg.valid) {
+                newCurves.push({
+                  id: key,
+                  label: key === 'absorbance' ? 'Absorbancia' : key.toUpperCase(),
+                  color: COLORS[idx % COLORS.length],
+                  reg,
+                  pts: reg.points
+                });
+              }
+            });
+          }
+        }
+      } catch {}
+    }
 
-  if (!calData) return null;
+    setCurvesData(newCurves);
+  }, [instrumentId, calSections, color]);
 
-  const { reg, pts } = calData;
-  const W=260, H=160, PL=38, PR=12, PT=12, PB=30;
-  const iW=W-PL-PR, iH=H-PT-PB;
-  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
-  const xMin=Math.min(...xs), xMax=Math.max(...xs);
-  const yMin=Math.min(...ys), yMax=Math.max(...ys);
-  const xPad=(xMax-xMin)*0.12||0.5, yPad=(yMax-yMin)*0.12||0.05;
-  const x0=xMin-xPad, x1=xMax+xPad, y0=yMin-yPad, y1=yMax+yPad;
-  const sx = x => ((x-x0)/(x1-x0))*iW;
-  const sy = y => iH - ((y-y0)/(y1-y0))*iH;
-  const lx0=sx(x0), ly0=sy(reg.m*x0+reg.b);
-  const lx1=sx(x1), ly1=sy(reg.m*x1+reg.b);
-  const ticks = 4;
+  if (!curvesData || curvesData.length === 0) return null;
+
+  // Global bounds calculation para escalar los ejes
+  let allXs = [];
+  let allYs = [];
+  curvesData.forEach(c => {
+    allXs.push(...c.pts.map(p => p.x));
+    allYs.push(...c.pts.map(p => p.y));
+  });
+
+  const xMin = Math.min(...allXs), xMax = Math.max(...allXs);
+  const yMin = Math.min(...allYs), yMax = Math.max(...allYs);
+  const xPad = (xMax - xMin) * 0.12 || 0.5;
+  const yPad = (yMax - yMin) * 0.12 || 0.05;
+  const x0 = xMin - xPad, x1 = xMax + xPad;
+  const y0 = yMin - yPad, y1 = yMax + yPad;
+
+  // Ajustar altura si hay muchas curvas para acomodar la leyenda
+  const legendLines = curvesData.length;
+  const W = 280, H = 160 + (legendLines > 1 ? legendLines * 12 : 0);
+  const PL = 42, PR = 12, PT = 12, PB = 30;
+  const iW = W - PL - PR, iH = H - PT - PB;
+
+  const sx = x => ((x - x0) / (x1 - x0)) * iW;
+  const sy = y => iH - ((y - y0) / (y1 - y0)) * iH;
+  const ticks = 5;
 
   return (
-    <svg viewBox={'0 0 '+W+' '+H} style={{ width:'100%', maxWidth:W, display:'block' }}>
-      <g transform={'translate('+PL+','+PT+')'}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
+      <g transform={`translate(${PL},${PT})`}>
         {/* Grid */}
-        {Array.from({length:ticks+1},(_,i)=>{
-          const fy=i/ticks;
-          return <line key={i} x1={0} y1={sy(y0+(y1-y0)*fy)} x2={iW} y2={sy(y0+(y1-y0)*fy)}
-            stroke="#e5e7eb" strokeWidth="0.5"/>;
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const fy = i / ticks;
+          return <line key={`gx-${i}`} x1={0} y1={sy(y0 + (y1 - y0) * fy)} x2={iW} y2={sy(y0 + (y1 - y0) * fy)} stroke="#e5e7eb" strokeWidth="0.5" />;
         })}
-        {/* Regression line */}
-        <line x1={lx0} y1={ly0} x2={lx1} y2={ly1} stroke={color} strokeWidth="1.5" strokeDasharray="4 2"/>
-        {/* Points */}
-        {pts.map((p,i)=><circle key={i} cx={sx(p.x)} cy={sy(p.y)} r="3.5" fill={color} stroke="white" strokeWidth="0.8"/>)}
-        {/* X axis */}
-        <line x1={0} y1={iH} x2={iW} y2={iH} stroke="#999" strokeWidth="0.8"/>
-        {/* Y axis */}
-        <line x1={0} y1={0} x2={0} y2={iH} stroke="#999" strokeWidth="0.8"/>
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const fx = i / ticks;
+          return <line key={`gy-${i}`} x1={sx(x0 + (x1 - x0) * fx)} y1={0} x2={sx(x0 + (x1 - x0) * fx)} y2={iH} stroke="#e5e7eb" strokeWidth="0.5" />;
+        })}
+
+        {/* Ejes principales */}
+        <line x1={0} y1={iH} x2={iW} y2={iH} stroke="#999" strokeWidth="0.8" />
+        <line x1={0} y1={0} x2={0} y2={iH} stroke="#999" strokeWidth="0.8" />
+
         {/* X ticks */}
-        {Array.from({length:ticks+1},(_,i)=>{
-          const v=x0+(x1-x0)*i/ticks;
-          return <text key={i} x={sx(v)} y={iH+10} textAnchor="middle"
-            fontSize="7" fill="#666">{v.toFixed(1)}</text>;
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const v = x0 + (x1 - x0) * i / ticks;
+          return <text key={`tx-${i}`} x={sx(v)} y={iH + 12} textAnchor="middle" fontSize="7.5" fill="#666">{v.toFixed(1)}</text>;
         })}
         {/* Y ticks */}
-        {Array.from({length:ticks+1},(_,i)=>{
-          const v=y0+(y1-y0)*i/ticks;
-          return <text key={i} x={-3} y={sy(v)+2} textAnchor="end"
-            fontSize="7" fill="#666">{v.toFixed(3)}</text>;
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const v = y0 + (y1 - y0) * i / ticks;
+          return <text key={`ty-${i}`} x={-4} y={sy(v) + 3} textAnchor="end" fontSize="7.5" fill="#666">{v.toFixed(3)}</text>;
         })}
-        {/* Equation */}
-        <text x={iW-2} y={12} textAnchor="end" fontSize="7.5" fill={color} fontWeight="600">
-          {'Abs = '+reg.m.toFixed(4)+'·C + '+reg.b.toFixed(4)}
-        </text>
-        <text x={iW-2} y={22} textAnchor="end" fontSize="7.5" fill="#555">
-          {'R² = '+reg.r2.toFixed(4)}
-        </text>
+
+        {/* Trazado de múltiples curvas */}
+        {curvesData.map((curve, idx) => {
+          const lx0 = sx(x0), ly0 = sy(curve.reg.m * x0 + curve.reg.b);
+          const lx1 = sx(x1), ly1 = sy(curve.reg.m * x1 + curve.reg.b);
+          return (
+            <g key={`curve-${curve.id}`}>
+              {/* Regression line */}
+              <line x1={lx0} y1={ly0} x2={lx1} y2={ly1} stroke={curve.color} strokeWidth="1.5" strokeDasharray="3 2" />
+              {/* Points */}
+              {curve.pts.map((p, i) => (
+                <circle key={`pt-${i}`} cx={sx(p.x)} cy={sy(p.y)} r="3" fill={curve.color} stroke="#fff" strokeWidth="0.5" />
+              ))}
+            </g>
+          );
+        })}
+
+        {/* Leyenda y Ecuaciones */}
+        {curvesData.map((curve, idx) => {
+          const legendY = 12 + (idx * 11);
+          return (
+            <g key={`leg-${curve.id}`}>
+              <rect x={10} y={legendY - 5} width={8} height={2} fill={curve.color} />
+              <text x={22} y={legendY} fontSize="7" fill={curve.color} fontWeight="600">
+                {curve.label}: y={curve.reg.m.toExponential(2)}x+{curve.reg.b.toExponential(2)} (R²={(curve.reg.r2).toFixed(4)})
+              </text>
+            </g>
+          );
+        })}
       </g>
     </svg>
   );
