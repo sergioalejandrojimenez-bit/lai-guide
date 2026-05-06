@@ -1863,3 +1863,304 @@ h3.sec-title { font-family: var(--serif); font-size: 1.1rem; color: var(--tb); m
   .rpt-it-key { background: none; font-size: .7rem; padding-bottom: 0; }
   .rpt-sig-grid { flex-direction: column; gap: 1.2rem; }
 }
+
+/* ===================================================
+   TABLA EDITABLE DE DATOS — edt-*
+   =================================================== */
+
+.edt-container {
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg2);
+}
+
+/* Cabecera toggle */
+.edt-toggle-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .9rem 1.2rem;
+  background: var(--bg2);
+  border: none;
+  border-left: 3px solid;
+  cursor: pointer;
+  transition: background .2s;
+  text-align: left;
+}
+.edt-toggle-header:hover { background: var(--bg3); }
+.edt-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.edt-toggle-title {
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--tb);
+}
+.edt-toggle-hint {
+  font-size: .72rem;
+  font-weight: 600;
+  background: rgba(255,255,255,.06);
+  padding: .15rem .5rem;
+  border-radius: 999px;
+}
+.edt-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  color: var(--td);
+}
+.edt-toggle-desc {
+  font-size: .72rem;
+}
+
+/* Cuerpo del editor */
+.edt-body {
+  border-top: 1px solid var(--bd);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.edt-empty {
+  color: var(--td);
+  font-size: .82rem;
+  font-style: italic;
+  padding: .5rem;
+}
+
+/* Seccion de tabla */
+.edt-section {
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg3);
+}
+.edt-sec-header {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: .6rem .9rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd);
+  border-left: 3px solid;
+}
+.edt-sec-title-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.edt-sec-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--t);
+  font-family: var(--sans);
+  padding: 0;
+  outline: none;
+  min-width: 0;
+}
+.edt-sec-title-input:focus {
+  border-bottom: 1px dashed rgba(255,255,255,.3);
+}
+.edt-sec-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+}
+.edt-hint {
+  font-size: .68rem;
+  color: var(--td);
+  font-family: var(--mono);
+}
+.edt-icon-btn {
+  background: none;
+  border: none;
+  color: var(--td);
+  cursor: pointer;
+  padding: .2rem .3rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color .15s;
+}
+.edt-icon-btn:hover { color: var(--t); }
+
+/* Tabla editable */
+.edt-table-wrap { overflow-x: auto; }
+.edt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+
+/* Encabezados de columna */
+.edt-th-num {
+  width: 32px;
+  text-align: center;
+  color: var(--td);
+  font-size: .65rem;
+  padding: .4rem .3rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd);
+}
+.edt-th-col {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd);
+  border-right: 1px solid var(--bd);
+  padding: .3rem .4rem;
+  vertical-align: top;
+}
+.edt-th-actions {
+  width: 60px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd);
+  padding: .3rem .4rem;
+  vertical-align: middle;
+}
+.edt-col-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: .25rem;
+}
+.edt-col-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--t);
+  font-size: .75rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  padding: .1rem .2rem;
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.edt-col-input:focus { border-bottom-color: currentColor; }
+.edt-del-col {
+  background: none;
+  border: none;
+  color: var(--td);
+  cursor: pointer;
+  padding: .1rem;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: .15rem;
+  transition: color .15s;
+}
+.edt-del-col:hover { color: #ef4444; }
+.edt-add-col-btn {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  background: none;
+  border: 1px dashed currentColor;
+  border-radius: 5px;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .25rem .5rem;
+  cursor: pointer;
+  opacity: .7;
+  transition: opacity .15s;
+  white-space: nowrap;
+}
+.edt-add-col-btn:hover { opacity: 1; }
+
+/* Filas de datos */
+.edt-tr-even { background: var(--bg3); }
+.edt-tr-odd  { background: var(--bg2); }
+.edt-td-num {
+  text-align: center;
+  color: var(--td);
+  font-size: .65rem;
+  font-family: var(--mono);
+  padding: .25rem .3rem;
+  border-right: 1px solid var(--bd);
+  border-bottom: 1px solid var(--bd);
+  user-select: none;
+}
+.edt-td-cell {
+  padding: .2rem .3rem;
+  border-right: 1px solid var(--bd);
+  border-bottom: 1px solid var(--bd);
+}
+.edt-cell-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--t);
+  font-size: .78rem;
+  font-family: var(--mono);
+  padding: .18rem .3rem;
+  outline: none;
+  transition: background .15s;
+  min-width: 60px;
+}
+.edt-cell-input:focus { background: rgba(255,255,255,.05); }
+.edt-td-actions {
+  padding: .2rem .3rem;
+  text-align: center;
+  border-bottom: 1px solid var(--bd);
+}
+.edt-del-row-btn {
+  background: none;
+  border: none;
+  color: var(--td);
+  cursor: pointer;
+  padding: .2rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  transition: color .15s;
+}
+.edt-del-row-btn:hover { color: #ef4444; }
+
+/* Footer de tabla */
+.edt-table-footer {
+  padding: .5rem .6rem;
+  border-top: 1px dashed var(--bd);
+}
+.edt-add-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  background: none;
+  border: 1px dashed currentColor;
+  border-radius: 6px;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .3rem .8rem;
+  cursor: pointer;
+  opacity: .75;
+  transition: opacity .15s;
+}
+.edt-add-row-btn:hover { opacity: 1; }
+
+/* Boton agregar seccion */
+.edt-add-section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: none;
+  border: 1px dashed;
+  border-radius: 8px;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .45rem 1rem;
+  cursor: pointer;
+  opacity: .7;
+  align-self: flex-start;
+  transition: opacity .15s;
+}
+.edt-add-section-btn:hover { opacity: 1; }
