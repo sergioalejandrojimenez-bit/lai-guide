@@ -264,7 +264,11 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
 
   const fmt = (d) => {
     if (!d) return '—';
-    try { return new Date(d+'T12:00:00').toLocaleDateString('es-CO',{year:'numeric',month:'2-digit',day:'2-digit'}); }
+    try { 
+      const parts = d.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+      return new Date(d+'T12:00:00').toLocaleDateString('es-CO',{year:'numeric',month:'2-digit',day:'2-digit'}); 
+    }
     catch { return d; }
   };
 
@@ -284,194 +288,239 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
 
   // Condiciones instrumentales por tipo
   const instrConditions = [];
-  if (meta.technique)   instrConditions.push(['Tecnica',          meta.technique]);
-  if (meta.analyte)     instrConditions.push(['Analito / Elemento', meta.analyte]);
-  if (meta.wavelength)  instrConditions.push(['Longitud de onda', meta.wavelength+' nm']);
-  if (parsed.method || meta.method) instrConditions.push(['Metodo / Archivo', parsed.method||meta.method]);
-  if (meta.conditions)  instrConditions.push(['Condiciones adicionales', meta.conditions]);
+  if (meta.technique)   instrConditions.push(['Técnica:',          meta.technique]);
+  if (meta.analyte)     instrConditions.push(['Elemento / Analito:', meta.analyte]);
+  if (meta.wavelength)  instrConditions.push(['Longitud de onda:', meta.wavelength+' nm']);
+  if (parsed.method || meta.method) instrConditions.push(['Método / Archivo:', parsed.method||meta.method]);
+  if (meta.conditions)  instrConditions.push(['Condiciones adicionales:', meta.conditions]);
 
   return (
     <div className="rpt-page" id="report-printable">
 
       {/* ══ ENCABEZADO ══════════════════════════════════════════════ */}
-      <div className="rpt2-header">
-        <div className="rpt2-header-logos">
-          <div className="rpt2-logo-uv">
-            <div className="rpt2-uv-box">
-              <span className="rpt2-uv-u">U</span>
-              <div className="rpt2-uv-text">
-                <span>Universidad</span>
-                <span>del Valle</span>
+      <div className="rpt2-header-wrapper">
+        <div className="rpt2-header-top-row">
+          <div className="rpt2-header-logos">
+            <div className="rpt2-logo-uv-sim">
+              <div className="uv-sim-icon">
+                <div className="uv-sim-box"></div>
+              </div>
+              <div className="uv-sim-text">
+                <span className="uv-sim-t1">Universidad</span>
+                <span className="uv-sim-t2">del Valle</span>
               </div>
             </div>
-            <div className="rpt2-divider"/>
-            <div className="rpt2-lai-box">
-              <span className="rpt2-lai-icon">LAI</span>
-              <div className="rpt2-lai-text">
-                <span>Laboratorio de</span>
-                <span>Analisis Industriales</span>
+            <div className="rpt2-divider"></div>
+            <div className="rpt2-logo-lai-sim">
+              <span className="lai-sim-icon">LAI</span>
+              <div className="lai-sim-text">
+                <span className="lai-sim-t1">Laboratorio de</span>
+                <span className="lai-sim-t2">Análisis Industriales</span>
               </div>
             </div>
           </div>
           <div className="rpt2-header-tagline">
-            Ciencia que genera soluciones &bull; Precision que impulsa la industria
+            Ciencia que genera soluciones <span className="rpt2-dot">&bull;</span> Precisión que impulsa la industria
           </div>
         </div>
-        <div className="rpt2-qr-placeholder">
-          <div className="rpt2-qr-box">
-            <div className="rpt2-qr-grid">
-              {Array.from({length:25},(_,i)=><div key={i} className={'rpt2-qr-cell'+(Math.random()>.5?' fill':'')}/>)}
-            </div>
-          </div>
-          <span className="rpt2-qr-label">Verifica autenticidad</span>
-        </div>
-      </div>
 
-      {/* ══ TITULO + METADATOS ══════════════════════════════════════ */}
-      <div className="rpt2-title-area">
-        <div className="rpt2-title-left">
-          <div className="rpt2-doc-type">REPORTE DE ANALISIS</div>
-          <div className="rpt2-inst-name">{inst.fullLabel.toUpperCase()}</div>
-          {meta.analyte && (
+        <div className="rpt2-title-area">
+          <div className="rpt2-title-left">
+            <div className="rpt2-doc-type">
+              {parsed.instrument === 'hplc' ? 'REPORTE DE ANÁLISIS CROMATOGRÁFICO' : 'REPORTE DE ANÁLISIS'}
+            </div>
+            <div className="rpt2-inst-name">{inst.fullLabel.toUpperCase()}</div>
             <div className="rpt2-analyte">
-              Determinacion de {meta.analyte}{meta.matrix?' en '+meta.matrix:''}
+              {meta.analyte ? `Determinación de ${meta.analyte}${meta.matrix?' en '+meta.matrix:''}` : 'Determinación de analitos'}
             </div>
-          )}
-        </div>
-        <div className="rpt2-title-right">
-          <table className="rpt2-meta-table">
-            <tbody>
-              <tr><td className="rpt2-mt-k">Codigo del reporte:</td><td className="rpt2-mt-v">{meta.reportCode}</td></tr>
-              <tr><td className="rpt2-mt-k">Fecha de emision:</td><td className="rpt2-mt-v">{fmt(meta.reportDate)}</td></tr>
-              <tr><td className="rpt2-mt-k">Pagina:</td><td className="rpt2-mt-v">1 de 1</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ══ SECCIONES 1+2: SERVICIO + MUESTRA ══════════════════════ */}
-      <div className="rpt2-two-col">
-        <div className="rpt2-col">
-          <div className="rpt2-sec-header">1. INFORMACION DEL SERVICIO</div>
-          <table className="rpt2-kv-table">
-            <tbody>
-              {isAcademic ? (<>
-                <tr><td>Estudiante / Investigador:</td><td>{meta.clientName||'—'}</td></tr>
-                <tr><td>Programa academico:</td><td>{meta.clientCompany||'—'}</td></tr>
-                <tr><td>Director / Asesor:</td><td>{meta.contactPerson||'—'}</td></tr>
-                <tr><td>Proyecto / Tesis:</td><td>{meta.projectName||'—'}</td></tr>
-              </>) : (<>
-                <tr><td>Cliente:</td><td>{meta.clientName||'—'}</td></tr>
-                <tr><td>Proyecto / Referencia:</td><td>{meta.projectName||'—'}</td></tr>
-                <tr><td>Orden de servicio:</td><td>{meta.serviceOrder||'—'}</td></tr>
-                <tr><td>Fecha de recepcion:</td><td>{fmt(meta.receptionDate)||'—'}</td></tr>
-              </>)}
-              <tr><td>Fecha de analisis:</td><td>{fmtLong(meta.reportDate)}</td></tr>
-              <tr><td>Analista responsable:</td><td>{meta.analyst||parsed.operator||'—'}</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="rpt2-col">
-          <div className="rpt2-sec-header">2. INFORMACION DE LA MUESTRA</div>
-          <table className="rpt2-kv-table">
-            <tbody>
-              <tr><td>Codigo de muestra:</td><td>{meta.sampleId||parsed.sampleId||'—'}</td></tr>
-              <tr><td>Matriz:</td><td>{meta.matrix||'—'}</td></tr>
-              <tr><td>Estado de la muestra:</td><td>{meta.sampleState||'—'}</td></tr>
-              <tr><td>Preservacion:</td><td>{meta.preservation||'—'}</td></tr>
-              <tr><td>Cantidad recibida:</td><td>{meta.quantityReceived||'—'}</td></tr>
-              <tr><td>Observaciones:</td><td>{meta.sampleDescription||'—'}</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ══ SECCIONES 3+4: CONDICIONES + CALIBRACION ══════════════ */}
-      {(instrConditions.length>0 || calSections.length>0) && (
-        <div className="rpt2-two-col">
-          {instrConditions.length>0 && (
-            <div className="rpt2-col">
-              <div className="rpt2-sec-header">3. CONDICIONES INSTRUMENTALES</div>
-              <table className="rpt2-kv-table">
-                <tbody>
-                  <tr><td>Equipo:</td><td>{parsed.title}</td></tr>
-                  {instrConditions.map(([k,v],i)=><tr key={i}><td>{k}:</td><td>{v}</td></tr>)}
-                  <tr><td>PNT de referencia:</td><td>{parsed.pnt||inst.pnt||'—'}</td></tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-          {calSections.length>0 && (
-            <div className="rpt2-col">
-              <div className="rpt2-sec-header">4. CURVA DE CALIBRACION</div>
-              <CalibrationSVG instrumentId={instrumentId} color={inst.color}/>
-              {calSections.map((sec,si)=>(
-                <div key={si} className="rpt2-cal-table-wrap">
-                  <table className="rpt2-data-table">
-                    <thead>
-                      <tr>{sec.columns.map((c,ci)=>(
-                        <th key={ci} style={{ background:inst.color+'22', color:inst.color }}>{c}</th>
-                      ))}</tr>
-                    </thead>
-                    <tbody>
-                      {sec.rows.map((row,ri)=>(
-                        <tr key={ri} className={ri%2===0?'rpt-tr-even':'rpt-tr-odd'}>
-                          {sec.columns.map((_,ci)=><td key={ci}>{row[ci]!==undefined?row[ci]:'—'}</td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ══ RESULTADOS ══════════════════════════════════════════════ */}
-      {resultSecs.length>0 && (
-        <div className="rpt2-full-section">
-          <div className="rpt2-sec-header">
-            {(instrConditions.length>0||calSections.length>0) ? '5.' : '3.'} RESULTADOS
           </div>
-          {resultSecs.map((sec,si)=>(
-            <div key={si}>
-              {sec.title&&<div className="rpt2-subsec-title" style={{ borderColor:inst.color }}>{sec.title}</div>}
-              <div className="rpt2-table-scroll">
-                <table className="rpt2-data-table">
+          <div className="rpt2-title-right">
+            <table className="rpt2-meta-table">
+              <tbody>
+                <tr><td className="rpt2-mt-k">Código del reporte:</td><td className="rpt2-mt-v">{meta.reportCode}</td></tr>
+                <tr><td className="rpt2-mt-k">Fecha de emisión:</td><td className="rpt2-mt-v">{fmt(meta.reportDate)}</td></tr>
+                <tr><td className="rpt2-mt-k">Versión:</td><td className="rpt2-mt-v">01</td></tr>
+                <tr><td className="rpt2-mt-k">Página:</td><td className="rpt2-mt-v">1 de 1</td></tr>
+              </tbody>
+            </table>
+            <div className="rpt2-qr-placeholder">
+              <div className="rpt2-qr-box">
+                <div className="rpt2-qr-inner">
+                  {Array.from({length:16},(_,i)=><div key={i} className={'rpt2-qr-cell'+(Math.random()>.4?' fill':'')}/>)}
+                </div>
+              </div>
+              <span className="rpt2-qr-label">Verificar autenticidad</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rpt2-content-wrapper">
+        {/* ══ SECCIONES 1+2: SERVICIO + MUESTRA / CONDICIONES ══════════════════════ */}
+        <div className="rpt2-two-col">
+          <div className="rpt2-col">
+            <div className="rpt2-sec-header">1. INFORMACIÓN DEL SERVICIO</div>
+            <table className="rpt2-kv-table">
+              <tbody>
+                {isAcademic ? (<>
+                  <tr><td className="kv-k">Estudiante / Inv.:</td><td className="kv-v">{meta.clientName||'—'}</td></tr>
+                  <tr><td className="kv-k">Programa académico:</td><td className="kv-v">{meta.clientCompany||'—'}</td></tr>
+                  <tr><td className="kv-k">Director / Asesor:</td><td className="kv-v">{meta.contactPerson||'—'}</td></tr>
+                  <tr><td className="kv-k">Proyecto / Tesis:</td><td className="kv-v">{meta.projectName||'—'}</td></tr>
+                </>) : (<>
+                  <tr><td className="kv-k">Cliente:</td><td className="kv-v">{meta.clientName||'—'}</td></tr>
+                  <tr><td className="kv-k">Proyecto / Ref.:</td><td className="kv-v">{meta.projectName||'—'}</td></tr>
+                  <tr><td className="kv-k">Orden de servicio:</td><td className="kv-v">{meta.serviceOrder||'—'}</td></tr>
+                  <tr><td className="kv-k">Contacto:</td><td className="kv-v">{meta.contactPerson||'—'}</td></tr>
+                  <tr><td className="kv-k">Fecha de recepción:</td><td className="kv-v">{fmt(meta.receptionDate)||'—'}</td></tr>
+                </>)}
+                <tr><td className="kv-k">Fecha de análisis:</td><td className="kv-v">{fmt(meta.reportDate)}</td></tr>
+                <tr><td className="kv-k">Analista responsable:</td><td className="kv-v">{meta.analyst||parsed.operator||'—'}</td></tr>
+                <tr><td className="kv-k">Observaciones:</td><td className="kv-v">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="rpt2-col">
+            <div className="rpt2-sec-header">
+              {parsed.instrument === 'hplc' ? '2. INFORMACIÓN INSTRUMENTAL Y CONDICIONES ANALÍTICAS' : '2. INFORMACIÓN DE LA MUESTRA'}
+            </div>
+            <table className="rpt2-kv-table">
+              <tbody>
+                {parsed.instrument === 'hplc' ? (
+                  <>
+                    <tr><td className="kv-k">Equipo:</td><td className="kv-v">{parsed.title}</td></tr>
+                    {instrConditions.map(([k,v],i)=><tr key={i}><td className="kv-k">{k}</td><td className="kv-v">{v}</td></tr>)}
+                    <tr><td className="kv-k">Modo de elución:</td><td className="kv-v">Gradiente lineal</td></tr>
+                  </>
+                ) : (
+                  <>
+                    <tr><td className="kv-k">Código de muestra:</td><td className="kv-v">{meta.sampleId||parsed.sampleId||'—'}</td></tr>
+                    <tr><td className="kv-k">Matriz:</td><td className="kv-v">{meta.matrix||'—'}</td></tr>
+                    <tr><td className="kv-k">Estado de la muestra:</td><td className="kv-v">{meta.sampleState||'—'}</td></tr>
+                    <tr><td className="kv-k">Preservación:</td><td className="kv-v">{meta.preservation||'—'}</td></tr>
+                    <tr><td className="kv-k">Cantidad recibida:</td><td className="kv-v">{meta.quantityReceived||'—'}</td></tr>
+                    <tr><td className="kv-k">Observaciones:</td><td className="kv-v">{meta.sampleDescription||'Muestras tomadas en planta'}</td></tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ══ SECCIONES 3+4: CONDICIONES + CALIBRACION (AA) / CURVAS (HPLC) ══════════════ */}
+        {(parsed.instrument !== 'hplc' && (instrConditions.length>0 || calSections.length>0)) && (
+          <div className="rpt2-two-col rpt2-mt">
+            {instrConditions.length>0 && (
+              <div className="rpt2-col">
+                <div className="rpt2-sec-header">3. CONDICIONES INSTRUMENTALES</div>
+                <table className="rpt2-kv-table">
+                  <tbody>
+                    <tr><td className="kv-k">Equipo:</td><td className="kv-v">{parsed.title}</td></tr>
+                    {instrConditions.map(([k,v],i)=><tr key={i}><td className="kv-k">{k}</td><td className="kv-v">{v}</td></tr>)}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {calSections.length>0 && (
+              <div className="rpt2-col">
+                <div className="rpt2-sec-header">4. CURVA DE CALIBRACIÓN</div>
+                <div className="rpt2-svg-wrap">
+                  <CalibrationSVG instrumentId={instrumentId} color={inst.color}/>
+                </div>
+                {calSections.map((sec,si)=>(
+                  <div key={si} className="rpt2-cal-table-wrap">
+                    <table className="rpt2-data-table light-header">
+                      <thead>
+                        <tr>{sec.columns.map((c,ci)=><th key={ci}>{c}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {sec.rows.map((row,ri)=>(
+                          <tr key={ri}>
+                            {sec.columns.map((_,ci)=><td key={ci}>{row[ci]!==undefined?row[ci]:'—'}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {parsed.instrument === 'hplc' && calSections.length>0 && (
+          <div className="rpt2-two-col rpt2-mt">
+            <div className="rpt2-col">
+              <div className="rpt2-sec-header">3. CURVAS DE CALIBRACIÓN (HPLC-UV, 254 nm)</div>
+              <div className="rpt2-svg-wrap">
+                <CalibrationSVG instrumentId={instrumentId} color={inst.color}/>
+              </div>
+            </div>
+            <div className="rpt2-col">
+              <div className="rpt2-cal-table-wrap" style={{marginTop:'2rem'}}>
+                {calSections.map((sec,si)=>(
+                  <div key={si}>
+                    <table className="rpt2-data-table light-header">
+                      <thead>
+                        <tr><th colSpan={sec.columns.length} className="super-header">{sec.title || 'Tabla de calibración'}</th></tr>
+                        <tr>{sec.columns.map((c,ci)=><th key={ci}>{c}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {sec.rows.map((row,ri)=>(
+                          <tr key={ri}>
+                            {sec.columns.map((_,ci)=><td key={ci}>{row[ci]!==undefined?row[ci]:'—'}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                <div className="rpt2-footnote">* Tablas de calibración completas para los analitos se encuentran disponibles bajo solicitud.</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ RESULTADOS ══════════════════════════════════════════════ */}
+        {resultSecs.length>0 && (
+          <div className="rpt2-full-section rpt2-mt">
+            <div className="rpt2-sec-header">
+              {parsed.instrument === 'hplc' ? '5.' : '5.'} RESULTADOS CUANTITATIVOS
+            </div>
+            {resultSecs.map((sec,si)=>(
+              <div key={si} className="rpt2-table-scroll">
+                <table className="rpt2-data-table red-header">
                   <thead>
                     <tr>{sec.columns.map((c,ci)=>(
-                      <th key={ci} style={{ background:inst.color, color:'#fff' }}>{c}</th>
+                      <th key={ci}>{c}</th>
                     ))}</tr>
                   </thead>
                   <tbody>
                     {sec.rows.map((row,ri)=>(
-                      <tr key={ri} className={ri%2===0?'rpt-tr-even':'rpt-tr-odd'}>
+                      <tr key={ri}>
                         {sec.columns.map((_,ci)=><td key={ci}>{row[ci]!==undefined?row[ci]:'—'}</td>)}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* ══ QC + ESTADISTICAS ═══════════════════════════════════════ */}
-      {(qcSections.length>0 || statsData) && (
-        <div className="rpt2-two-col">
+        {/* ══ QC + ESTADISTICAS / OBSERVACIONES ═══════════════════════════════════════ */}
+        <div className="rpt2-two-col rpt2-mt rpt2-obs-row">
           {qcSections.length>0 && (
             <div className="rpt2-col">
-              <div className="rpt2-sec-header">6. CONTROL DE CALIDAD</div>
+              <div className="rpt2-sec-header">6. CONTROL DE CALIDAD DEL SISTEMA (SUITABILITY)</div>
               {qcSections.map((sec,si)=>(
                 <div key={si} className="rpt2-table-scroll">
-                  <table className="rpt2-data-table">
+                  <table className="rpt2-data-table red-header">
                     <thead><tr>{sec.columns.map((c,ci)=>(
-                      <th key={ci} style={{ background:inst.color+'22', color:inst.color }}>{c}</th>
+                      <th key={ci}>{c}</th>
                     ))}</tr></thead>
                     <tbody>{sec.rows.map((row,ri)=>(
-                      <tr key={ri} className={ri%2===0?'rpt-tr-even':'rpt-tr-odd'}>
+                      <tr key={ri}>
                         {sec.columns.map((_,ci)=><td key={ci}>{row[ci]!==undefined?row[ci]:'—'}</td>)}
                       </tr>
                     ))}</tbody>
@@ -480,16 +529,16 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
               ))}
             </div>
           )}
-          {statsData && (
+          {statsData && parsed.instrument !== 'hplc' && (
             <div className="rpt2-col">
-              <div className="rpt2-sec-header">7. RESUMEN ESTADISTICO</div>
+              <div className="rpt2-sec-header">7. RESUMEN ESTADÍSTICO</div>
               <div className="rpt2-table-scroll">
-                <table className="rpt2-data-table">
+                <table className="rpt2-data-table red-header">
                   <thead><tr>{statsData.columns.map((c,ci)=>(
-                    <th key={ci} style={{ background:inst.color+'22', color:inst.color }}>{c}</th>
+                    <th key={ci}>{c}</th>
                   ))}</tr></thead>
                   <tbody>{statsData.rows.map((row,ri)=>(
-                    <tr key={ri} className={ri%2===0?'rpt-tr-even':'rpt-tr-odd'}>
+                    <tr key={ri}>
                       {row.map((cell,ci)=><td key={ci}>{cell}</td>)}
                     </tr>
                   ))}</tbody>
@@ -497,52 +546,64 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ══ OBSERVACIONES + FIRMA ═══════════════════════════════════ */}
-      <div className="rpt2-obs-sig-row">
-        <div className="rpt2-obs-col">
-          {meta.observations && (<>
-            <div className="rpt2-sec-header-sm">OBSERVACIONES</div>
-            <div className="rpt2-obs-box">
-              {meta.observations.split('\n').map((line,i)=>(
-                <p key={i}>&bull; {line}</p>
-              ))}
+          
+          <div className="rpt2-col">
+            <div className="rpt2-sec-header">
+              {(qcSections.length>0 && statsData && parsed.instrument!=='hplc') ? '8.' : '7.'} OBSERVACIONES
             </div>
-          </>)}
-        </div>
-        <div className="rpt2-sig-col">
-          <div className="rpt2-sig-line"/>
-          <div className="rpt2-sig-name">{meta.analyst||meta.reviewer||'___________________'}</div>
-          <div className="rpt2-sig-role">Analista Responsable LAI</div>
-          {meta.reviewer && (<>
-            <div style={{height:'1rem'}}/>
-            <div className="rpt2-sig-line"/>
-            <div className="rpt2-sig-name">{meta.reviewer}</div>
-            <div className="rpt2-sig-role">{isAcademic?'Director / Asesor':'Director de Laboratorio'}</div>
-          </>)}
-          <div className="rpt2-disclaimer">
-            Prohibida la reproduccion parcial sin autorizacion escrita del LAI.
+            <div className="rpt2-obs-content">
+              <ul className="rpt2-obs-list">
+                <li>Resultados expresados en ppm.</li>
+                {meta.observations && meta.observations.split('\n').filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}
+                <li>El presente reporte se refiere únicamente a la muestra analizada.</li>
+                <li>Prohibida la reproducción parcial de este documento sin autorización del LAI.</li>
+                <li>Incertidumbre expandida disponible bajo solicitud.</li>
+              </ul>
+              
+              <div className="rpt2-signature-block">
+                <div className="rpt2-sig-line"></div>
+                <div className="rpt2-sig-name">{meta.analyst||meta.reviewer||'Ing. Químico Responsable'}</div>
+                <div className="rpt2-sig-role">Laboratorio de Análisis Industriales - LAI<br/>Universidad del Valle</div>
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
 
       {/* ══ FOOTER ══════════════════════════════════════════════════ */}
       <div className="rpt2-footer">
-        <div className="rpt2-footer-item">
-          <MapPin size={10}/> <span>Universidad del Valle · Calle 13 #100-00, Cali, Colombia</span>
+        <div className="rpt2-footer-left">
+          <MapPin size={16} className="ft-icon"/>
+          <div className="ft-text">
+            <strong>Universidad del Valle</strong><br/>
+            Laboratorio de Análisis Industriales - LAI<br/>
+            Ciudad Universitaria, Calle 13 #100-00<br/>
+            Cali, Colombia
+          </div>
         </div>
-        <div className="rpt2-footer-item">
-          <Phone size={10}/> <span>(602) 321 2100 Ext. 2630</span>
+        <div className="rpt2-footer-center">
+          <div className="ft-contact">
+            <Phone size={14} className="ft-icon"/> <span>(602) 321 2100 Ext. 2630</span>
+          </div>
+          <div className="ft-contact">
+            <Mail size={14} className="ft-icon"/> <span>lai@correounivalle.edu.co</span>
+          </div>
+          <div className="ft-contact">
+            <Globe size={14} className="ft-icon"/> <span>www.lai.univalle.edu.co</span>
+          </div>
         </div>
-        <div className="rpt2-footer-item">
-          <Mail size={10}/> <span>lai@correounivalle.edu.co</span>
-        </div>
-        <div className="rpt2-footer-item">
-          <Globe size={10}/> <span>www.lai.univalle.edu.co</span>
+        <div className="rpt2-footer-logos">
+          <div className="sim-onac">
+            <div className="onac-circle"></div>
+            <div className="onac-text">ONAC<br/><span>ACREDITADO</span></div>
+          </div>
+          <div className="sim-iso">
+            ISO/IEC 17025:2017<br/>14-LAB-031<br/>Ensayos
+          </div>
         </div>
       </div>
+
     </div>
   );
 };
