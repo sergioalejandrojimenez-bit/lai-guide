@@ -81,12 +81,25 @@ function computeStats(section) {
 }
 
 /* ────────────────────────────────────────────────────────────
- * Mini grafica SVG de calibracion desde localStorage
+ * Mini grafica SVG de calibracion desde localStorage o calSections
  * ──────────────────────────────────────────────────────────── */
-const CalibrationSVG = ({ instrumentId, color }) => {
+const CalibrationSVG = ({ instrumentId, color, calSections }) => {
   const [calData, setCalData] = useState(null);
 
   useEffect(() => {
+    // Intentar leer de calSections (prioridad si existe y tiene datos)
+    if (calSections && calSections.length > 0) {
+      for (const sec of calSections) {
+        if (!sec.rows || sec.rows.length < 2) continue;
+        const pts = sec.rows.map(row => ({ x: row[0], y: row[1] }));
+        const reg = linearRegression(pts);
+        if (reg.valid) {
+          setCalData({ reg, pts: reg.points });
+          return;
+        }
+      }
+    }
+
     try {
       const raw = localStorage.getItem('lai_exp_' + instrumentId + '_v1');
       if (!raw) return;
@@ -100,12 +113,9 @@ const CalibrationSVG = ({ instrumentId, color }) => {
       if (!Array.isArray(standards) || standards.length < 2) return;
       const reg = linearRegression(standards);
       if (!reg.valid) return;
-      const pts = standards
-        .filter(s => s.x !== '' && s.y !== '' && !isNaN(+s.x) && !isNaN(+s.y))
-        .map(s => ({ x: +s.x, y: +s.y }));
-      setCalData({ reg, pts });
+      setCalData({ reg, pts: reg.points });
     } catch {}
-  }, [instrumentId]);
+  }, [instrumentId, calSections]);
 
   if (!calData) return null;
 
@@ -425,7 +435,7 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
               <div className="rpt2-col">
                 <div className="rpt2-sec-header">4. CURVA DE CALIBRACIÓN</div>
                 <div className="rpt2-svg-wrap">
-                  <CalibrationSVG instrumentId={instrumentId} color={inst.color}/>
+                  <CalibrationSVG instrumentId={instrumentId} color={inst.color} calSections={calSections}/>
                 </div>
                 {calSections.map((sec,si)=>(
                   <div key={si} className="rpt2-cal-table-wrap">
@@ -453,7 +463,7 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
             <div className="rpt2-col">
               <div className="rpt2-sec-header">3. CURVAS DE CALIBRACIÓN (HPLC-UV, 254 nm)</div>
               <div className="rpt2-svg-wrap">
-                <CalibrationSVG instrumentId={instrumentId} color={inst.color}/>
+                <CalibrationSVG instrumentId={instrumentId} color={inst.color} calSections={calSections}/>
               </div>
             </div>
             <div className="rpt2-col">
@@ -562,7 +572,7 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
               
               <div className="rpt2-signature-block">
                 <div className="rpt2-sig-line"></div>
-                <div className="rpt2-sig-name">{meta.analyst||meta.reviewer||'Ing. Químico Responsable'}</div>
+                <div className="rpt2-sig-name">{meta.analyst||meta.reviewer||'Analista'}</div>
                 <div className="rpt2-sig-role">Laboratorio de Análisis Industriales - LAI<br/>Universidad del Valle</div>
               </div>
             </div>
