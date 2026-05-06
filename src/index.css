@@ -2200,33 +2200,11 @@ h3.sec-title { font-family: var(--serif); font-size: 1.1rem; color: var(--tb); m
   gap: 15px;
 }
 
-/* Simulación Logo Univalle */
+/* Logo Univalle SVG wrapper */
 .rpt2-logo-uv-sim {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
-.uv-sim-icon {
-  width: 36px; height: 36px;
-  background: #c00000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.uv-sim-box {
-  width: 18px; height: 20px;
-  border: 2px solid #fff;
-  border-top: none;
-  margin-top: -2px;
-}
-.uv-sim-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.05;
-}
-.uv-sim-t1 { font-size: 15px; font-weight: 700; color: #c00000; font-family: Arial, Helvetica, sans-serif; letter-spacing: -0.2px; }
-.uv-sim-t2 { font-size: 15px; font-weight: 700; color: #c00000; font-family: Arial, Helvetica, sans-serif; letter-spacing: -0.2px; }
 
 .rpt2-divider {
   width: 1px;
