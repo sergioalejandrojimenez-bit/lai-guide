@@ -312,13 +312,12 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
         <div className="rpt2-header-top-row">
           <div className="rpt2-header-logos">
             <div className="rpt2-logo-uv-sim">
-              <svg viewBox="0 0 100 135" style={{ width: '48px', height: 'auto', display: 'block' }}>
-                <rect x="5" y="5" width="90" height="85" fill="#E30613" />
-                <path d="M 12 12 L 12 55 Q 12 76 35 76 L 60 76 L 60 32 L 35 32 L 35 12 Z" fill="#fff" />
-                <polygon points="35,32 90,32 62,88" fill="#fff" />
-                <text x="50" y="106" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">Universidad</text>
-                <text x="50" y="121" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">del Valle</text>
-                <line x1="8" y1="128" x2="92" y2="128" stroke="#E30613" strokeWidth="2" />
+              <svg viewBox="0 0 100 140" style={{ width: '48px', height: 'auto', display: 'block' }}>
+                <rect x="5" y="5" width="90" height="90" fill="#E30613" />
+                <path d="M 15 15 L 35 15 L 35 35 L 85 35 L 60 85 L 50 65 C 35 80, 15 75, 15 45 Z" fill="#fff" />
+                <text x="50" y="112" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">Universidad</text>
+                <text x="50" y="127" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="15" fill="#E30613" textAnchor="middle" letterSpacing="-0.3">del Valle</text>
+                <line x1="8" y1="134" x2="92" y2="134" stroke="#E30613" strokeWidth="2" />
               </svg>
             </div>
             <div className="rpt2-divider"></div>
