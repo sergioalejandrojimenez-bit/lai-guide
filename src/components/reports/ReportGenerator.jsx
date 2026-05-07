@@ -347,11 +347,11 @@ const ReportPreview = ({ parsed, editableSections, meta, reportType, instrumentI
   };
 
   // Separar tablas: calibracion vs resultados vs qc vs otras
-  const calSections  = editableSections.filter(s=>/calibr|curva|estandar|std/i.test(s.title));
-  const qcSections   = editableSections.filter(s=>/qc|calidad|control/i.test(s.title));
-  const resultSecs   = editableSections.filter(s=>!calSections.includes(s) && !qcSections.includes(s));
+  const calSections  = editableSections.filter(s => /calibr|curva de cal/i.test(s.title));
+  const qcSections   = editableSections.filter(s => /suitability|qc|calidad|control/i.test(s.title) && !calSections.includes(s));
+  const resultSecs   = editableSections.filter(s => !calSections.includes(s) && !qcSections.includes(s));
 
-  // Stats desde primera tabla de resultados
+  // Stats desde primera tabla de resultados que tenga filas numéricas
   const statsData = resultSecs.length > 0 ? computeStats(resultSecs[0]) : null;
 
   // Condiciones instrumentales por tipo
