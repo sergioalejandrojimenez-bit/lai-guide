@@ -4,8 +4,9 @@ import {
   Printer, RotateCcw, Eye, ClipboardList,
   Building2, GraduationCap, Hash, User,
   Beaker, Info, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
-  Phone, Mail, MapPin, Globe,
+  Phone, Mail, MapPin, Globe, Download,
 } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { parseTxtReport, SAMPLE_TXT } from '../../utils/parseTxtReport';
 import { linearRegression } from '../../utils/linearRegression';
 
@@ -737,6 +738,19 @@ const ReportGenerator = ({ instrumentId }) => {
     }
   }, [instOverride, fileContent]);
 
+  const exportPDF = () => {
+    const element = document.getElementById('report-printable');
+    if (!element) return;
+    const opt = {
+      margin:       0,
+      filename:     `${meta.reportCode || 'reporte_lai'}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
+  };
+
   const handleDrop = useCallback(e => {
     e.preventDefault(); setIsDragging(false);
     const file = e.dataTransfer.files[0]; if (!file) return;
@@ -960,9 +974,11 @@ const ReportGenerator = ({ instrumentId }) => {
           <button className="rg-tb-btn secondary" onClick={resetAll}><RotateCcw size={13}/> Nuevo reporte</button>
         </div>
         <div className="rg-preview-toolbar-right">
-          <div className="rg-print-hint"><Info size={12}/> Ctrl+P &rarr; Guardar como PDF &rarr; Sin margenes</div>
-          <button className="rg-tb-btn primary" style={{background:inst.color}} onClick={()=>window.print()}>
-            <Printer size={15}/> Imprimir / PDF
+          <button className="rg-tb-btn primary" style={{background:inst.color, marginRight: '8px'}} onClick={exportPDF}>
+            <Download size={15}/> Descargar PDF Oficial
+          </button>
+          <button className="rg-tb-btn secondary" onClick={()=>window.print()}>
+            <Printer size={15}/> Imprimir web
           </button>
         </div>
       </div>

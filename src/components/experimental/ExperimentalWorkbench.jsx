@@ -51,6 +51,28 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
   const updateRow = (id, field, value) =>
     onStandardsChange(standards.map((s) => s.id === id ? { ...s, [field]: value } : s));
 
+  const handlePaste = (e, startIndex) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    if (!pastedText) return;
+    const rows = pastedText.split(/\r?\n/).map(r => r.split('\t'));
+    
+    let newStandards = [...standards];
+    let currIdx = startIndex;
+    for (const row of rows) {
+      if (row.length === 0 || (row.length === 1 && row[0].trim() === '')) continue;
+      if (currIdx >= newStandards.length) {
+        newStandards.push({ id: uid(), x: '', y: '' });
+      }
+      const xVal = row[0]?.trim();
+      const yVal = row[1]?.trim();
+      if (xVal !== undefined && xVal !== '') newStandards[currIdx].x = xVal;
+      if (yVal !== undefined && yVal !== '') newStandards[currIdx].y = yVal;
+      currIdx++;
+    }
+    onStandardsChange(newStandards);
+  };
+
   return (
     <div className="exp-panel">
       <div className="exp-panel-header">
@@ -109,6 +131,7 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                         placeholder={curve.xPlaceholder}
                         value={s.x}
                         onChange={(e) => updateRow(s.id, 'x', e.target.value)}
+                        onPaste={(e) => handlePaste(e, i)}
                         aria-label={`Estándar ${i+1} ${curve.xLabel}`}
                       />
                     </td>
@@ -120,6 +143,7 @@ const CalibrationPanel = ({ curve, color, standards, onStandardsChange }) => {
                         placeholder={curve.yPlaceholder}
                         value={s.y}
                         onChange={(e) => updateRow(s.id, 'y', e.target.value)}
+                        onPaste={(e) => handlePaste(e, i)}
                         aria-label={`Estándar ${i+1} ${curve.yLabel}`}
                       />
                     </td>
@@ -266,12 +290,66 @@ const SamplesPanel = ({ config, regressions }) => {
       s.id === id ? { ...s, signals: { ...s.signals, [curveId]: value } } : s
     ));
 
+  const handlePaste = (e, startIndex) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    if (!pastedText) return;
+    const rows = pastedText.split(/\r?\n/).map(r => r.split('\t'));
+    
+    let newSamples = [...samples];
+    let currIdx = startIndex;
+    for (const row of rows) {
+      if (row.length === 0 || (row.length === 1 && row[0].trim() === '')) continue;
+      if (currIdx >= newSamples.length) {
+        newSamples.push({ id: uid(), name: '', type: 'Muestra', signals: {}, dilution: 1 });
+      }
+      
+      const s = newSamples[currIdx];
+      let colIdx = 0;
+      if (row[colIdx] !== undefined && row[colIdx] !== '') s.name = row[colIdx].trim();
+      colIdx++;
+      
+      const possibleTypes = ['Muestra', 'Blanco', 'Duplicado', 'Spike', 'CCV'];
+      if (row[colIdx] !== undefined) {
+        const t = row[colIdx].trim();
+        if (possibleTypes.includes(t)) {
+          s.type = t;
+          colIdx++;
+        }
+      }
+      
+      for (const c of config.curves) {
+        if (row[colIdx] !== undefined && row[colIdx] !== '') {
+          s.signals[c.id] = row[colIdx].trim();
+        }
+        colIdx++;
+      }
+      
+      if (config.dilutionFactor && row[colIdx] !== undefined && row[colIdx] !== '') {
+        s.dilution = row[colIdx].trim();
+      }
+      
+      currIdx++;
+    }
+    setSamples(newSamples);
+  };
+
   /* Calcular resultado para una muestra */
   const calcResult = useCallback((sample) => {
     const allRegsValid = Object.values(regressions).every((r) => r?.valid);
     if (!allRegsValid) return null;
     return config.resultFormula(sample.signals, regressions);
   }, [regressions, config]);
+
+  const getSingleResult = (result) => {
+    if (result == null) return null;
+    if (typeof result === 'object') {
+      const highlighted = config.resultFields?.find(f => f.highlight);
+      if (highlighted && result[highlighted.key] != null) return result[highlighted.key];
+      return Object.values(result)[0];
+    }
+    return result;
+  };
 
   const allValid = Object.values(regressions).every((r) => r?.valid);
 
@@ -322,8 +400,38 @@ const SamplesPanel = ({ config, regressions }) => {
             </tr>
           </thead>
           <tbody>
-            {samples.map((sample) => {
+            {samples.map((sample, idx) => {
               const result = calcResult(sample);
+              const singleRes = getSingleResult(result);
+              const finalRes = singleRes != null ? singleRes * (sample.dilution || 1) : null;
+              
+              let qaAlert = null;
+              if (sample.type === 'Duplicado' && idx > 0 && finalRes != null) {
+                const prevSample = samples[idx - 1];
+                const prevResObj = calcResult(prevSample);
+                const prevSingle = getSingleResult(prevResObj);
+                const prevFinal = prevSingle != null ? prevSingle * (prevSample.dilution || 1) : null;
+                
+                if (prevFinal != null && prevFinal !== 0) {
+                  const rpd = Math.abs(finalRes - prevFinal) / ((finalRes + prevFinal) / 2) * 100;
+                  if (rpd > 20) {
+                    qaAlert = <span title={`RPD = ${rpd.toFixed(1)}% (>20% límite)`} style={{ color: '#ef4444', marginLeft: '6px', cursor: 'help', fontSize: '0.85rem' }}>⚠️ RPD Alto</span>;
+                  } else {
+                    qaAlert = <span title={`RPD = ${rpd.toFixed(1)}%`} style={{ color: '#10b981', marginLeft: '6px', cursor: 'help', fontSize: '0.85rem' }}>✓ RPD OK</span>;
+                  }
+                }
+              }
+              
+              if (!qaAlert && singleRes != null && sample.type !== 'Blanco') {
+                const firstReg = Object.values(regressions)[0];
+                if (firstReg && firstReg.points && firstReg.points.length > 0) {
+                  const maxStd = Math.max(...firstReg.points.map(p => p.x));
+                  if (singleRes > maxStd * 1.05) {
+                     qaAlert = <span title="Excede el rango lineal de calibración. Requiere dilución." style={{ color: '#f59e0b', marginLeft: '6px', cursor: 'help', fontSize: '0.85rem' }}>⚠️ &gt;Max</span>;
+                  }
+                }
+              }
+
               return (
                 <tr key={sample.id}>
                   <td>
@@ -333,6 +441,7 @@ const SamplesPanel = ({ config, regressions }) => {
                       placeholder="ID muestra"
                       value={sample.name}
                       onChange={(e) => updateSample(sample.id, 'name', e.target.value)}
+                      onPaste={(e) => handlePaste(e, idx)}
                     />
                   </td>
                   <td>
@@ -358,6 +467,7 @@ const SamplesPanel = ({ config, regressions }) => {
                         placeholder={c.yPlaceholder}
                         value={sample.signals[c.id] ?? ''}
                         onChange={(e) => updateSignal(sample.id, c.id, e.target.value)}
+                        onPaste={(e) => handlePaste(e, idx)}
                       />
                     </td>
                   ))}
@@ -385,6 +495,7 @@ const SamplesPanel = ({ config, regressions }) => {
                           {result?.[f.key] != null
                             ? sigFig(result[f.key] * (sample.dilution || 1), 5)
                             : '—'}
+                          {f.highlight && qaAlert}
                         </span>
                       </td>
                     ))
@@ -397,6 +508,7 @@ const SamplesPanel = ({ config, regressions }) => {
                         {result != null
                           ? sigFig(result * (sample.dilution || 1), 5)
                           : '—'}
+                        {qaAlert}
                       </span>
                     </td>
                   )}
